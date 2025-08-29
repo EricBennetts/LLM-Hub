@@ -14,7 +14,7 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // 注册方法保持不变
+    // 注册方法
     @PostMapping("/register")
     public Result register(@RequestBody User user) {
         try {
