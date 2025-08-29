@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+    <!-- 页眉 -->
+    <header class="app-header">
+        <div class="header-title">LLM Hub</div>
+        <nav class="header-nav">
+            <!-- 情况A: 如果用户未登录 (loggedInUser 为 null) -->
+            <div v-if="!loggedInUser">
+                <button class="nav-btn" @click="openLoginModal">登录</button>
+                <button class="nav-btn" @click="openRegistrationModal">注册</button>
+            </div>
+            <!-- 情况B: 如果用户已登录 -->
+            <div v-else class="user-info">
+                <span>欢迎, {{ loggedInUser.username }}</span>
+                <button class="nav-btn-create" @click="openCreatePostModal">发布新帖</button>
+                <button class="nav-btn-logout" @click="logout">退出</button>
+            </div>
+        </nav>
+    </header>
+    <div v-if="!loggedInUser" class="login-prompt-banner">
+        您当前未登录，<a href="#" @click.prevent="openLoginModal">登录</a>后即可发表帖子
+    </div>
+
+    <!-- 帖子列表部分保持不变 -->
+    <div class="posts-container">
+        <h1>社区帖子</h1>
+
+        <div class="post-item" v-for="post in posts" :key="post.id">
+            <h3 class="post-title">{{ post.title }}</h3>
+            <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
+            <p class="post-content">{{ post.content }}</p>
+        </div>
+        <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>
+    </div>
+
+    <!-- 2. 将原来的登录框改造成登录模态框 -->
+    <div class="modal-overlay" v-if="isLoginModalVisible">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>用户登录</h2>
+                <button class="close-btn" @click="closeLoginModal">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="login-username-input">用户名</label>
+                <input type="text" id="login-username-input" v-model="loginUser.username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="login-password-input">密码</label>
+                <input type="password" id="login-password-input" v-model="loginUser.password" placeholder="请输入密码">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @click="closeLoginModal">取消</button>
+                <button class="btn-primary" @click="handleLogin">登录</button>
+            </div>
+            <div class="registration-prompt">
+                还没有账号？ <button @click="switchToRegisterModal">立即注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注册模态框保持不变 -->
+    <div class="modal-overlay" v-if="isRegistrationModalVisible">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>新用户注册</h2>
+                <button class="close-btn" @click="closeRegistrationModal">&times;</button>
+            </div>
+            <!-- 表单区域 -->
+            <div class="form-group">
+                <label for="username-input"><span class="required">*</span> 用户名</label>
+                <input type="text" id="username-input" v-model="newUser.username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="email-input"><span class="required">*</span> 电子邮箱</label>
+                <input type="email" id="email-input" v-model="newUser.email" placeholder="请输入邮箱">
+            </div>
+            <div class="form-group">
+                <label for="password-input"><span class="required">*</span> 密码</label>
+                <input type="password" id="password-input" v-model="newUser.password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password-input"><span class="required">*</span> 确认密码</label>
+                <input type="password" id="confirm-password-input" v-model="newUser.confirmPassword" placeholder="请再次输入密码">
+            </div>
+            <!-- 动作按钮区域 -->
+            <div class="modal-actions">
+                <button class="btn-secondary" @click="closeRegistrationModal">取消</button>
+                <button class="btn-primary" @click="registerUser">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发布新帖模态框 -->
+    <div class="modal-overlay" v-if="isCreatePostModalVisible">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>发布新帖子</h2>
+                <button class="close-btn" @click="closeCreatePostModal">&times;</button>
+            </div>
+            <div class="form-group-column">
+                <label for="post-title-input">标题</label>
+                <input type="text" id="post-title-input" v-model="newPost.title" placeholder="请输入帖子标题">
+            </div>
+            <div class="form-group-column">
+                <label for="post-content-input">内容</label>
+                <textarea id="post-content-input" v-model="newPost.content" placeholder="请输入帖子内容..." rows="8"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @click="closeCreatePostModal">取消</button>
+                <button class="btn-primary" @click="handleCreatePost">发布</button>
+            </div>
+        </div>
+    </div>
+
+<!-- 这是 #app 的结束标签 -->
+</div>
+
+
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    posts: [],
+                    isRegistrationModalVisible: false,
+                    isLoginModalVisible: false, // 新增：控制登录模态框的可见性
+                    newUser: {
+                        username: '',
+                        email: '',
+                        password: '',
+                        confirmPassword: ''
+                    },
+                    loginUser: {
+                        username: '',
+                        password: ''
+                    },
+                    loggedInUser: null,
+                    isCreatePostModalVisible: false, // 控制发帖模态框
+                    newPost: {                      // 存储新帖子的数据
+                        title: '',
+                        content: ''
+                    }
+                }
+            },
+            methods: {
+                fetchPosts() {
+                    axios.get('http://localhost:8080/posts')
+                        .then(response => {
+                            if (response.data.code === 0) {
+                                this.posts = response.data.data;
+                            } else {
+                                alert('帖子加载失败: ' + response.data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取帖子列表出错:', error);
+                            alert('网络错误，无法加载帖子列表。');
+                        });
+                },
+                formatTime(dateTimeString) {
+                    if (!dateTimeString) return '';
+                    const date = new Date(dateTimeString);
+                    return date.toLocaleString();
+                },
+                // --- 登录模态框控制 ---
+                openLoginModal() {
+                    this.loginUser = { username: '', password: '' }; // 清空输入
+                    this.isLoginModalVisible = true;
+                },
+                closeLoginModal() {
+                    this.isLoginModalVisible = false;
+                },
+                // --- 注册模态框控制 ---
+                openRegistrationModal() {
+                    this.newUser = { username: '', email: '', password: '', confirmPassword: '' };
+                    this.isRegistrationModalVisible = true;
+                },
+                closeRegistrationModal() {
+                    this.isRegistrationModalVisible = false;
+                },
+                // --- 功能逻辑 ---
+                registerUser() {
+                    if (!this.newUser.username.trim() || !this.newUser.email.trim() || !this.newUser.password) {
+                        alert('请填写所有必填项！');
+                        return;
+                    }
+                    if (this.newUser.password !== this.newUser.confirmPassword) {
+                        alert('两次输入的密码不一致！');
+                        return;
+                    }
+                    const userData = {
+                        username: this.newUser.username,
+                        email: this.newUser.email,
+                        password: this.newUser.password
+                    };
+                    axios.post('http://localhost:8080/users/register', userData)
+                        .then(response => {
+                            if (response.data.code === 0) {
+                                alert('注册成功！');
+                                this.closeRegistrationModal();
+                                // 注册成功后可以自动弹出登录框，引导用户登录
+                                this.openLoginModal();
+                            } else {
+                                alert('注册失败: ' + response.data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('注册请求出错:', error);
+                            alert('注册失败，请查看控制台获取详情。');
+                        });
+                },
+                handleLogin() {
+                    if (!this.loginUser.username.trim() || !this.loginUser.password) {
+                        alert('用户名和密码不能为空！');
+                        return;
+                    }
+                    axios.post('http://localhost:8080/users/login', this.loginUser)
+                        .then(response => {
+                            if (response.data.code === 0) {
+                                alert('登录成功！');
+                                const token = response.data.data;
+
+                                // 1. 将JWT保存到 localStorage
+                                localStorage.setItem('jwt-token', token);
+
+                                // 2. 解析JWT并更新UI状态
+                                this.loggedInUser = this.parseJwt(token);
+
+                                // 3. (重要)为后续所有axios请求设置默认的认证头
+                                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                                this.closeLoginModal();
+                            } else {
+                                alert('登录失败: ' + response.data.message);
+                            }
+                        }).catch(error => alert('登录失败，网络或服务器错误。'));
+                },
+                logout() {
+                    // 1. 从 localStorage 中移除JWT
+                    localStorage.removeItem('jwt-token');
+
+                    // 2. 将UI状态重置为未登录
+                    this.loggedInUser = null;
+
+                    // 3. 移除axios的默认认证头
+                    delete axios.defaults.headers.common['Authorization'];
+
+                    alert('您已成功退出。');
+                },
+                parseJwt(token) {
+                    try {
+                        const base64Url = token.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        // 后端生成JWT时，把用户信息放在了 "claims" 字段里
+                        return JSON.parse(jsonPayload).claims;
+                    } catch (e) {
+                        console.error("解析Token失败:", e);
+                        return null;
+                    }
+                },
+                switchToRegisterModal() {
+                    this.closeLoginModal();
+                    this.openRegistrationModal();
+                },
+
+                openCreatePostModal() {
+                    // 每次打开都清空，保证是新帖子
+                    this.newPost = { title: '', content: '' };
+                    this.isCreatePostModalVisible = true;
+                },
+                closeCreatePostModal() {
+                    this.isCreatePostModalVisible = false;
+                },
+                handleCreatePost() {
+                    // 简单的前端校验
+                    if (!this.newPost.title.trim() || !this.newPost.content.trim()) {
+                        alert('标题和内容都不能为空！');
+                        return;
+                    }
+                    axios.post('http://localhost:8080/posts', this.newPost)
+                        .then(response => {
+                            if (response.data.code === 0) {
+                                alert('发布成功！');
+                                this.closeCreatePostModal();
+                                // 发布成功后，刷新帖子列表以立即看到新帖子
+                                this.fetchPosts();
+                            } else {
+                                alert('发布失败: ' + response.data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('发布帖子出错:', error);
+                            // 如果是401或403错误，说明认证失败
+                            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                                alert('认证失败，请重新登录后再试。');
+                                this.logout(); // 可以选择强制用户退出
+                            } else {
+                                alert('发布失败，请检查网络或联系管理员。');
+                            }
+                        });
+                }
+            },
+            created() {
+                // 1. 页面加载时，先获取帖子
+                this.fetchPosts();
+
+                // 2. 检查本地是否已存储JWT
+                const token = localStorage.getItem('jwt-token');
+                if (token) {
+                    // 如果有，解析它并更新UI
+                    const userData = this.parseJwt(token);
+                    if (userData) {
+                        this.loggedInUser = userData;
+                        // 同时，为axios设置认证头，以便后续请求能够携带JWT
+                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    } else {
+                        // 如果token解析失败（可能是无效的或过期的），则清理掉
+                        localStorage.removeItem('jwt-token');
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+spring.application.name=LLM-Hub
+mybatis.configuration.map-underscore-to-camel-case=true
+
+# 配置数据库连接信息
+spring.datasource.url={Your_Database_URL}
+spring.datasource.driver-class-name={Your_Database_Driver_Class_Name}
+spring.datasource.username={Your_Database_Username}
+spring.datasource.password={Your_Database_Password}
+
+# 配置MyBatis日志输出
+mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl

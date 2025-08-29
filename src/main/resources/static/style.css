@@ -1,0 +1,278 @@
+/* 全局和基础样式 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+}
+
+#app {
+    width: 100%;
+    max-width: 900px; /* 稍微加宽一点以适应社区布局 */
+    margin: 0 auto;
+}
+
+/* 页眉样式 */
+.app-header {
+    background-color: #ffffff;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e8e8e8;
+    position: sticky; /* 让页眉吸顶 */
+    top: 0;
+    z-index: 999;
+}
+
+.header-title {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.header-nav .nav-btn {
+    margin-left: 12px;
+    padding: 8px 16px;
+    border: 1px solid #007bff;
+    background-color: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.header-nav .nav-btn:hover {
+    opacity: 0.8;
+}
+/* 用户信息区域样式 */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info span {
+    color: #333;
+    font-weight: 500;
+}
+
+.nav-btn-logout {
+    padding: 6px 12px;
+    border: 1px solid #dc3545;
+    background-color: #dc3545;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-size: 14px;
+}
+
+.nav-btn-logout:hover {
+    opacity: 0.8;
+}
+/* 帖子容器样式 */
+.posts-container {
+    background: transparent; /* 背景设为透明，以显示body的背景色 */
+    padding: 20px 0; /* 调整内边距 */
+    margin: 0; /* 移除外边距 */
+}
+
+.posts-container h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+}
+
+.post-item {
+    background: white;
+    border: 1px solid #e8e8e8;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.post-title {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: #007bff;
+}
+
+.post-meta {
+    font-size: 0.85em;
+    color: #888;
+    margin-bottom: 10px;
+}
+
+.post-content {
+    color: #555;
+    line-height: 1.6;
+}
+
+/* 模态框通用样式 (基本不变) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px 30px;
+    border-radius: 8px;
+    width: 450px; /* 稍微调整宽度 */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 { margin: 0; }
+
+.close-btn {
+    font-size: 24px;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.form-group label {
+    width: 80px;
+    margin-right: 20px;
+    text-align: right;
+}
+
+.form-group input {
+    flex: 1; /* 让输入框自适应剩余空间 */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.modal-actions {
+    text-align: right;
+    margin-top: 10px;
+}
+
+.modal-actions button {
+    padding: 8px 16px;
+    margin-left: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+
+.btn-secondary {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+}
+
+.required { color: red; }
+
+/* 登录框内的注册引导 */
+.registration-prompt {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    font-size: 0.9em;
+}
+.registration-prompt button {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+
+/* 发布新帖按钮样式 */
+.nav-btn-create {
+    padding: 6px 12px;
+    border: 1px solid #28a745; /* 绿色 */
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+}
+.nav-btn-create:hover {
+    opacity: 0.8;
+}
+
+.form-group-column {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+.form-group-column label {
+    margin-bottom: 8px; /* 标签和输入框之间的距离 */
+    font-weight: bold;
+    text-align: left;
+}
+
+.form-group-column input,
+.form-group-column textarea {
+    width: 100%; /* 宽度占满 */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* 避免padding撑大宽度 */
+    font-size: 16px;
+    font-family: inherit; /* 继承字体 */
+}
+
+.form-group-column textarea {
+    resize: vertical; /* 只允许垂直方向调整大小 */
+}
+
+/* 【修改后】的未登录提示条样式 */
+.login-prompt-banner {
+    background-color: #fffbe6; /* 淡黄色背景，更像一个提示 */
+    color: #856404; /* 深黄色文字 */
+    padding: 12px 24px;
+    text-align: center;
+    font-size: 15px;
+    border-bottom: 1px solid #ffeeba; /* 底部边框 */
+
+    /* --- 核心CSS改动，使其吸顶 --- */
+    position: sticky;
+    top: 60px; /* 页眉的高度是60px，所以这个banner从60px处开始吸顶 */
+    z-index: 998; /* z-index比页眉(999)低，但比页面内容高 */
+}
+
+.login-prompt-banner a {
+    color: #007bff;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.login-prompt-banner a:hover {
+    text-decoration: underline;
+}
