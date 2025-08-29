@@ -90,47 +90,49 @@ LLM-Hub 是一个基于 Spring Boot 和 Vue.js 构建的现代化全栈 Web 应�
     cd [你的仓库名]
     ```
 
-   2.  **创建数据库和表**
-       *   登录到你的 MySQL 客户端。
-       *   创建一个新的数据库（例如 `llm_hub`）。
-         ```sql
-         CREATE DATABASE llm_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-         USE llm_hub;
-         ```
-       *   执行以下 SQL 语句来创建 `user` 和 `post` 表：
-         ```sql
-         -- 创建用户表
-         CREATE TABLE user (
-             id BIGINT AUTO_INCREMENT PRIMARY KEY,
-             username VARCHAR(50) NOT NULL UNIQUE,
-             password VARCHAR(100) NOT NULL,
-             email VARCHAR(100) NOT NULL UNIQUE,
-             avatar_url VARCHAR(255),
-             bio varchar(255),
-             role VARCHAR(20) DEFAULT 'user',
-             create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-             update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-         );
+2.  **创建数据库和表**
+    *   登录到你的 MySQL 客户端。
+    *   创建一个新的数据库（例如 `llm_hub`）。
+      ```sql
+      CREATE DATABASE llm_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      USE llm_hub;
+      ```
+    *   执行以下 SQL 语句来创建 `user` 和 `post` 表：
+      ```sql
+      -- 创建用户表
+      CREATE TABLE user (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(50) NOT NULL UNIQUE,
+          password VARCHAR(100) NOT NULL,
+          email VARCHAR(100) NOT NULL UNIQUE,
+          avatar_url VARCHAR(255),
+          bio varchar(255),
+          role VARCHAR(20) DEFAULT 'user',
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      );
 
-         -- 创建帖子表
-         CREATE TABLE post (
-             id BIGINT AUTO_INCREMENT PRIMARY KEY,
-             title VARCHAR(100) NOT NULL,
-             content TEXT NOT NULL,
-             user_id BIGINT NOT NULL,
-             create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-             update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-         );
-       -- 创建post表中user_id的索引
-         create index idx_user_id
-         on post (user_id)
-         comment '用于快速查找用户帖子的索引';
-         ```
+      -- 创建帖子表
+      CREATE TABLE post (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          title VARCHAR(100) NOT NULL,
+          content TEXT NOT NULL,
+          user_id BIGINT NOT NULL,
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      );
+    -- 创建post表中user_id的索引
+      create index idx_user_id
+      on post (user_id)
+      comment '用于快速查找用户帖子的索引';
+      ```
+       
 3.  **配置应用程序**
     *   在 `src/main/resources/` 目录下，找到名为 `application.properties.example` 的文件。
     *   根据你的本地数据库环境修改其中以 `{}` 包围的占位符。
 
-    4.  **运行后端服务**
+
+4.  **运行后端服务**
     编译项目并运行启动类：LlmHubApplication.java
     当看到 Spring Boot 的启动日志时，表示后端服务已在 `http://localhost:8080` 上成功运行。
 
