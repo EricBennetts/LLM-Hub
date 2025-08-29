@@ -13,7 +13,7 @@
     <!-- 页眉 -->
     <header class="app-header">
         <div class="header-title">
-            <router-link to="/">LLM Hub</router-link>
+            LLM Hub
         </div>
         <nav class="header-nav">
             <!-- 情况A: 如果用户未登录 (loggedInUser 为 null) -->
@@ -135,7 +135,7 @@
                 return {
                     posts: [],
                     isRegistrationModalVisible: false,
-                    isLoginModalVisible: false, // 控制登录模态框的可见性
+                    isLoginModalVisible: false, // 新增：控制登录模态框的可见性
                     newUser: {
                         username: '',
                         email: '',
