@@ -25,7 +25,7 @@ public class UserController {
         }
     }
 
-    // 新增：处理登录请求
+    // 处理登录请求
     @PostMapping("/login")
     public Result login(@RequestBody User user) {
         try {

@@ -2,16 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>LLm-Hub社区论坛</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
     <!-- 页眉 -->
     <header class="app-header">
-        <div class="header-title">LLM Hub</div>
+        <div class="header-title">
+            <router-link to="/">LLM Hub</router-link>
+        </div>
         <nav class="header-nav">
             <!-- 情况A: 如果用户未登录 (loggedInUser 为 null) -->
             <div v-if="!loggedInUser">
@@ -132,7 +135,7 @@
                 return {
                     posts: [],
                     isRegistrationModalVisible: false,
-                    isLoginModalVisible: false, // 新增：控制登录模态框的可见性
+                    isLoginModalVisible: false, // 控制登录模态框的可见性
                     newUser: {
                         username: '',
                         email: '',
