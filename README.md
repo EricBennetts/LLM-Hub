@@ -133,8 +133,8 @@ LLM-Hub 是一个基于 Spring Boot 和 Vue.js 构建的现代化全栈 Web 应�
 
 
 4.  **运行后端服务**
-    编译项目并运行启动类：LlmHubApplication.java
-    当看到 Spring Boot 的启动日志时，表示后端服务已在 `http://localhost:8080` 上成功运行。
+    *   编译项目并运行启动类：LlmHubApplication.java
+    *   当看到 Spring Boot 的启动日志时，表示后端服务已在 `http://localhost:8080` 上成功运行。
 
 ### 3. 前端访问
 
