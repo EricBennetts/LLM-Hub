@@ -103,10 +103,64 @@ const PostDetail = {
     }
 };
 
+const MyPosts = {
+    // 复用和PostList几乎一样的模板，只是标题不同
+    template: `
+        <div class="posts-container">
+            <h1>我发布的帖子</h1>
+            <router-link to="/" class="back-link">&larr; 返回社区帖子</router-link>
+            <div v-if="loading" class="loading-indicator">正在加载您的帖子...</div>
+            <div v-else-if="posts.length > 0">
+                <router-link :to="'/posts/' + post.id" class="post-item-link" v-for="post in posts" :key="post.id">
+                    <div class="post-item">
+                        <h3 class="post-title">{{ post.title }}</h3>
+                        <p class="post-meta">发布于: {{ formatTime(post.createTime) }}</p>
+                         <p class="post-content-summary">{{ summarizeContent(post.content) }}</p>
+                    </div>
+                </router-link>
+            </div>
+            <p v-else class="empty-list-prompt">您还没有发布过任何帖子。</p>
+        </div>
+    `,
+    data() {
+        return { posts: [], loading: true };
+    },
+    methods: {
+        // 主要区别在这里：调用 /user/posts 接口
+        async fetchMyPosts() {
+            this.loading = true;
+            try {
+                // axios的默认头已经携带了JWT
+                const response = await axios.get('http://localhost:8080/user/posts');
+                if (response.data.code === 0) {
+                    this.posts = response.data.data;
+                } else {
+                    alert('加载您的帖子失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('获取我的帖子出错:', error);
+                alert('网络错误或认证失败，无法加载您的帖子。');
+            } finally {
+                this.loading = false;
+            }
+        },
+        formatTime,
+        summarizeContent(content) {
+            if (!content) return '';
+            return content.length > 150 ? content.substring(0, 150) + '...' : content;
+        }
+    },
+    created() {
+        this.fetchMyPosts();
+    }
+};
+
+
 // 定义路由规则
 const routes = [
     { path: '/', component: PostList },          // 根路径'/' 对应 PostList 组件
-    { path: '/posts/:id', component: PostDetail } // '/posts/...' 对应 PostDetail 组件, ':id'是动态参数
+    { path: '/posts/:id', component: PostDetail }, // '/posts/...' 对应 PostDetail 组件, ':id'是动态参数
+    { path: '/my-posts', component: MyPosts }
 ];
 
 // 创建并配置路由实例

@@ -24,6 +24,7 @@
             <!-- 情况B: 如果用户已登录 -->
             <div v-else class="user-info">
                 <span>欢迎, {{ loggedInUser.username }}</span>
+                <router-link to="/my-posts" class="nav-link">我的帖子</router-link>
                 <button class="nav-btn-create" @click="openCreatePostModal">发布新帖</button>
                 <button class="nav-btn-logout" @click="logout">退出</button>
             </div>
@@ -35,16 +36,16 @@
 
     <!-- 路由视图 -->
     <router-view :key="routerViewKey"></router-view>
-<!--    <div class="posts-container">-->
-<!--        <h1>社区帖子</h1>-->
+    <!--    <div class="posts-container">-->
+    <!--        <h1>社区帖子</h1>-->
 
-<!--        <div class="post-item" v-for="post in posts" :key="post.id">-->
-<!--            <h3 class="post-title">{{ post.title }}</h3>-->
-<!--            <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>-->
-<!--            <p class="post-content">{{ post.content }}</p>-->
-<!--        </div>-->
-<!--        <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>-->
-<!--    </div>-->
+    <!--        <div class="post-item" v-for="post in posts" :key="post.id">-->
+    <!--            <h3 class="post-title">{{ post.title }}</h3>-->
+    <!--            <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>-->
+    <!--            <p class="post-content">{{ post.content }}</p>-->
+    <!--        </div>-->
+    <!--        <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>-->
+    <!--    </div>-->
 
     <!-- 2. 将原来的登录框改造成登录模态框 -->
     <div class="modal-overlay" v-if="isLoginModalVisible">

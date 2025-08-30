@@ -84,6 +84,32 @@ body {
     text-decoration: none;
 }
 
+.nav-link {
+    padding: 6px 12px;
+    border: 1px solid #28a745; /* 绿色 */
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+}
+.nav-link:hover {
+    opacity: 0.8;
+    text-decoration: none;
+}
+
+.loading-indicator, .empty-list-prompt, .error-message {
+    text-align: center;
+    padding: 40px 0;
+    color: #888;
+    font-size: 1.1em;
+}
+.error-message {
+    color: #dc3545;
+}
 
 
 /* 帖子容器样式 */
