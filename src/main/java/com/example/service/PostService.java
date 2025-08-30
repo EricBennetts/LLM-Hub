@@ -9,4 +9,6 @@ public interface PostService {
     void createPost(Post post);
 
     Post getPostById(Long id);
+
+    List<Post> getPostsByCurrentUser();
 }

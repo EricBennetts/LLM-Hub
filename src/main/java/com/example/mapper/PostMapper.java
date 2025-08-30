@@ -37,4 +37,15 @@ public interface PostMapper {
             "FROM post p JOIN user u ON p.user_id = u.id " +
             "WHERE p.id = #{id}")
     Post findById(Long id);
+
+    /**
+     * 根据用户id查询该用户发布的所有帖子，并关联查询出作者的用户名
+     * @param userId 用户id
+     * @return 帖子列表
+     */
+    @Select("SELECT p.*, u.username as authorUsername " +
+            "FROM post p JOIN user u ON p.user_id = u.id " +
+            "WHERE p.user_id = #{userId} " +
+            "ORDER BY p.create_time DESC")
+    List<Post> findByUserId(Long userId);
 }

@@ -40,4 +40,16 @@ public class PostServiceImpl implements PostService {
     public Post getPostById(Long id) {
         return postMapper.findById(id);
     }
+
+    @Override
+    public List<Post> getPostsByCurrentUser() {
+        // 从 SecurityContextHolder 获取当前登录用户的信息
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
+        Number userIdNumber = (Number) claims.get("id");
+        Long currentUserId = userIdNumber.longValue();
+
+        // 调用 Mapper 方法，传入当前用户的ID
+        return postMapper.findByUserId(currentUserId);
+    }
 }
