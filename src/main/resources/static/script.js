@@ -9,17 +9,15 @@ const formatTime = (dateTimeString) => {
 
 // 创建帖子列表组件
 const PostList = {
-    template: `
-            <div class="posts-container">
+    template: ` <div class="posts-container">
                 <h1>社区帖子</h1>
-                <div class="post-item" v-for="post in posts" :key="post.id">
-                    <h3 class="post-title">
-                        <!-- 标题文本是一个指向详情页的路由链接 -->
-                        <router-link :to="'/posts/' + post.id">{{ post.title }}</router-link>
-                    </h3>
-                    <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
-                    <p class="post-content">{{ post.content }}</p>
-                </div>
+                <router-link :to="'/posts/' + post.id" class="post-item-link" v-for="post in posts" :key="post.id">
+                    <div class="post-item">
+                        <h3 class="post-title">{{ post.title }}</h3>
+                        <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
+                        <p class="post-content">{{ post.content }}</p>
+                    </div>
+                </router-link>
                 <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>
             </div>
         `,
