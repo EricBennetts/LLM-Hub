@@ -226,10 +226,14 @@ body {
 }
 
 .post-actions-inline .btn-primary {
-    padding: 6px 14px; /* Increases the space inside the button */
-    font-size: 16px;   /* Sets a consistent font size */
-    cursor: pointer;   /* Ensures the mouse cursor changes to a pointer on hover */
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
     border-radius: 4px;
+    transition: opacity 0.2s;
+}
+.post-actions-inline .btn-primary:hover {
+    opacity: 0.8;
 }
 
 .post-detail-container > div[aria-live="polite"] {
