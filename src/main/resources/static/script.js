@@ -56,7 +56,14 @@ const PostDetail = {
     template: `
             <div class="post-detail-container">
                 <!-- 提供一个返回列表的链接，提升用户体验 -->
-                <router-link to="/" class="back-link">&larr; 返回列表</router-link>
+                <div class="post-navigation">
+                    <router-link to="/" class="back-link">&larr; 返回列表</router-link>
+                    <!-- 编辑按钮，只有帖子作者才能看到并点击 -->
+                    <!-- 将 v-if="canEdit" 移动到按钮的容器上 -->
+                    <div v-if="canEdit" class="post-actions-inline">
+                        <button class="btn-primary" @click="openEditModal">编辑</button>
+                    </div>
+                </div>
 
                 <!-- 如果帖子正在加载，显示提示信息 -->
                 <div v-if="loading">正在加载帖子...</div>
@@ -69,10 +76,6 @@ const PostDetail = {
                     <h1>{{ post.title }}</h1>
                     <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
                     <div class="post-content-full">{{ post.content }}</div>
-                    <!-- 编辑按钮，只有帖子作者才能看到并点击 -->
-                    <div v-if="canEdit" class="post-actions">
-                        <button class="btn-primary" @click="openEditModal">编辑</button>
-                    </div>
                 </div>
                 
                 <!-- 编辑帖子模态框 -->

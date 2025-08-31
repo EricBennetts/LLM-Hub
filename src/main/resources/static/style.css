@@ -125,6 +125,10 @@ body {
     margin-bottom: 25px;
 }
 
+.posts-container .back-link {
+    margin-bottom: 10px;
+}
+
 .post-item {
     background: white;
     border: 1px solid #e8e8e8;
@@ -201,7 +205,6 @@ body {
 
 .back-link {
     display: inline-block;
-    margin-bottom: 20px;
     color: #007bff;
     text-decoration: none;
     font-weight: 500;
@@ -209,6 +212,24 @@ body {
 
 .back-link:hover {
     text-decoration: underline;
+}
+
+.post-navigation {
+    display: flex;
+    justify-content: space-between; /* 核心：让内部元素两端对齐 */
+    align-items: center;           /* 核心：让内部元素垂直居中 */
+    margin-bottom: 20px;
+}
+
+.post-actions-inline {
+    display: inline-block; /* 只是一个容器，设为inline-block即可 */
+}
+
+.post-actions-inline .btn-primary {
+    padding: 6px 14px; /* Increases the space inside the button */
+    font-size: 16px;   /* Sets a consistent font size */
+    cursor: pointer;   /* Ensures the mouse cursor changes to a pointer on hover */
+    border-radius: 4px;
 }
 
 .post-detail-container > div[aria-live="polite"] {
