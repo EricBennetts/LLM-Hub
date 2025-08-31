@@ -69,6 +69,32 @@ const PostDetail = {
                     <h1>{{ post.title }}</h1>
                     <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
                     <div class="post-content-full">{{ post.content }}</div>
+                    <!-- 编辑按钮，只有帖子作者才能看到并点击 -->
+                    <div v-if="canEdit" class="post-actions">
+                        <button class="btn-primary" @click="openEditModal">编辑</button>
+                    </div>
+                </div>
+                
+                <!-- 编辑帖子模态框 -->
+                <div class="modal-overlay" v-if="isEditModalVisible">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>编辑帖子</h2>
+                            <button class="close-btn" @click="closeEditModal">&times;</button>
+                        </div>
+                        <div class="form-group-column">
+                            <label for="edit-post-title">标题</label>
+                            <input type="text" id="edit-post-title" v-model="editPost.title">
+                        </div>
+                        <div class="form-group-column">
+                            <label for="edit-post-content">内容</label>
+                            <textarea id="edit-post-content" v-model="editPost.content" rows="8"></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn-secondary" @click="closeEditModal">取消</button>
+                            <button class="btn-primary" @click="handleEditPost">保存</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `,
@@ -76,11 +102,65 @@ const PostDetail = {
         return {
             post: null, // 用来存放从后端获取的单个帖子数据
             loading: true, // 加载状态
-            error: null // 错误信息
+            error: null, // 错误信息
+            isEditModalVisible: false, // 控制编辑模态框的可见性
+            editPost: { // 存储编辑的帖子数据
+                title: '',
+                content: ''
+            }
         };
     },
+    computed: {
+        // 判断当前用户是否可以编辑这个帖子
+        canEdit() {
+            const root = this.$root;
+            if (!root.loggedInUser || !this.post) {
+                return false;
+            }
+            // 统一转换为数字进行比较
+            return Number(root.loggedInUser.id) === Number(this.post.userId);
+        }
+    },
     methods: {
-        formatTime
+        formatTime,
+        openEditModal() {
+            // 将当前帖子数据填充到编辑表单中
+            this.editPost.title = this.post.title;
+            this.editPost.content = this.post.content;
+            this.isEditModalVisible = true;
+        },
+        closeEditModal() {
+            this.isEditModalVisible = false;
+        },
+        handleEditPost() {
+            // 简单的前端校验
+            if (!this.editPost.title.trim() || !this.editPost.content.trim()) {
+                alert('标题和内容都不能为空！');
+                return;
+            }
+            
+            const postId = this.post.id;
+            axios.put(`http://localhost:8080/posts/${postId}`, this.editPost)
+                .then(response => {
+                    if (response.data.code === 0) {
+                        alert('更新成功！');
+                        // 更新当前页面显示的帖子内容
+                        this.post.title = this.editPost.title;
+                        this.post.content = this.editPost.content;
+                        this.closeEditModal();
+                    } else {
+                        alert('更新失败: ' + response.data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('更新帖子出错:', error);
+                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                        alert('认证失败，请重新登录后再试。');
+                    } else {
+                        alert('更新失败，请检查网络或联系管理员。');
+                    }
+                });
+        }
     },
     created() {
         // this.$route.params.id 可以获取到URL中的动态部分，也就是帖子的ID
@@ -295,6 +375,11 @@ const app = createApp({
 
             // 3. 移除axios的默认认证头
             delete axios.defaults.headers.common['Authorization'];
+
+            // 4. 如果当前在需要认证的页面，则导航到主页
+            if (this.$route.path === '/my-posts' || this.$route.path.startsWith('/posts/')) {
+                this.$router.push('/');
+            }
 
             alert('您已成功退出。');
         },

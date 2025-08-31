@@ -30,17 +30,18 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // --- 关键改动 1: 关闭默认的 session 管理 ---
+                // --- 关闭默认的 session 管理 ---
                 // 因为我们用JWT，是无状态的，不需要session
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // authorizeHttpRequests 为 AuthorizationFilter 编写一本“规则手册”
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/users/register", "/users/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/posts/**").authenticated()
                         .anyRequest().authenticated()
                 );
 
-        // --- 关键改动 2: 添加你的 JWT 过滤器 ---
+        // ---  添加 JWT 过滤器 ---
         // 告诉 Spring Security，在进行用户名密码认证前，先执行我们的 JWT 过滤器
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

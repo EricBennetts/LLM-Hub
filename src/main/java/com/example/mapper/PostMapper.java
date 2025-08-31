@@ -4,6 +4,7 @@ import com.example.pojo.Post;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -48,4 +49,23 @@ public interface PostMapper {
             "WHERE p.user_id = #{userId} " +
             "ORDER BY p.create_time DESC")
     List<Post> findByUserId(Long userId);
+
+    
+    /**
+     * 更新帖子（仅更新标题和内容）
+     * @param post 帖子对象
+     * @return 更新的行数
+     */
+    @Update("UPDATE post SET title = #{title}, content = #{content} WHERE id = #{id}")
+    int updatePost(Post post);
+
+    /**
+     * 根据帖子ID和用户ID查询帖子（用于验证用户是否有权限修改该帖子）
+     * @param id 帖子ID
+     * @param userId 用户ID
+     * @return 帖子对象
+     */
+    @Select("SELECT * FROM post WHERE id = #{id} AND user_id = #{userId}")
+    Post findByIdAndUserId(Long id, Long userId);
+
 }

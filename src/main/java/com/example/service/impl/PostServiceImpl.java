@@ -52,4 +52,23 @@ public class PostServiceImpl implements PostService {
         // 调用 Mapper 方法，传入当前用户的ID
         return postMapper.findByUserId(currentUserId);
     }
+    
+    @Override
+    public boolean updatePost(Post post) {
+        // 从 Spring Security 的上下文中获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
+        Number userIdNumber = (Number) claims.get("id");
+        Long currentUserId = userIdNumber.longValue();
+        
+        // 确认帖子是否属于当前用户
+        Post existingPost = postMapper.findByIdAndUserId(post.getId(), currentUserId);
+        if (existingPost == null) {
+            return false; // 帖子不存在或不属于当前用户
+        }
+        
+        // 更新帖子
+        int rowsAffected = postMapper.updatePost(post);
+        return rowsAffected > 0;
+    }
 }
