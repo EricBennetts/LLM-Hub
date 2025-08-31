@@ -13,4 +13,6 @@ public interface PostService {
     List<Post> getPostsByCurrentUser();
     
     boolean updatePost(Post post);
+    
+    boolean deletePost(Long postId);
 }

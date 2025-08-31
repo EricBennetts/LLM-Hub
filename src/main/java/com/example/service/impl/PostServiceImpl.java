@@ -71,4 +71,17 @@ public class PostServiceImpl implements PostService {
         int rowsAffected = postMapper.updatePost(post);
         return rowsAffected > 0;
     }
+    
+    @Override
+    public boolean deletePost(Long postId) {
+        // 从 Spring Security 的上下文中获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
+        Number userIdNumber = (Number) claims.get("id");
+        Long currentUserId = userIdNumber.longValue();
+        
+        // 删除帖子（只有帖子作者才能删除）
+        int rowsAffected = postMapper.deleteByIdAndUserId(postId, currentUserId);
+        return rowsAffected > 0;
+    }
 }

@@ -69,4 +69,16 @@ public class PostController {
         }
     }
 
+    // 删除帖子 (DELETE /posts/{id})
+    @DeleteMapping("/{id}")
+    public Result delete(@PathVariable Long id) {
+        // 尝试删除帖子
+        boolean success = postService.deletePost(id);
+        if (success) {
+            return Result.success();
+        } else {
+            return Result.error("帖子不存在或您无权删除此帖子");
+        }
+    }
+
 }

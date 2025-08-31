@@ -62,6 +62,7 @@ const PostDetail = {
                     <!-- 将 v-if="canEdit" 移动到按钮的容器上 -->
                     <div v-if="canEdit" class="post-actions-inline">
                         <button class="btn-primary" @click="openEditModal">编辑</button>
+                        <button class="btn-danger" @click="handleDeletePost">删除</button>
                     </div>
                 </div>
 
@@ -134,6 +135,31 @@ const PostDetail = {
         },
         closeEditModal() {
             this.isEditModalVisible = false;
+        },
+        handleDeletePost() {
+            if (!confirm('确定要删除这篇帖子吗？此操作不可恢复！')) {
+                return;
+            }
+            
+            const postId = this.post.id;
+            axios.delete(`http://localhost:8080/posts/${postId}`)
+                .then(response => {
+                    if (response.data.code === 0) {
+                        alert('删除成功！');
+                        // 跳转回帖子列表页面
+                        this.$router.push('/');
+                    } else {
+                        alert('删除失败: ' + response.data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('删除帖子出错:', error);
+                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                        alert('认证失败，请重新登录后再试。');
+                    } else {
+                        alert('删除失败，请检查网络或联系管理员。');
+                    }
+                });
         },
         handleEditPost() {
             // 简单的前端校验

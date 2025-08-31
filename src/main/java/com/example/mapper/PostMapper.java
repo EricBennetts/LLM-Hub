@@ -68,4 +68,13 @@ public interface PostMapper {
     @Select("SELECT * FROM post WHERE id = #{id} AND user_id = #{userId}")
     Post findByIdAndUserId(Long id, Long userId);
 
+    /**
+     * 根据帖子ID和用户ID删除帖子（确保用户只能删除自己的帖子）
+     * @param id 帖子ID
+     * @param userId 用户ID
+     * @return 删除的行数
+     */
+    @Update("DELETE FROM post WHERE id = #{id} AND user_id = #{userId}")
+    int deleteByIdAndUserId(Long id, Long userId);
+
 }
