@@ -128,6 +128,20 @@ LLM-Hub 是一个基于 Spring Boot 和 Vue.js 构建的现代化全栈 Web 应�
       create index idx_user_id
       on post (user_id)
       comment '用于快速查找用户帖子的索引';
+    
+    -- 创建comment表
+    CREATE TABLE comment (
+        id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        content text NOT NULL,
+        user_id bigint NOT NULL,
+        post_id bigint NOT NULL,
+        create_time timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+        update_time timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY fk_comment_user (user_id),
+        KEY fk_comment_post (post_id),
+        CONSTRAINT fk_comment_post FOREIGN KEY (post_id) REFERENCES post (id) ON DELETE CASCADE,
+        CONSTRAINT fk_comment_user FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
+    )
       ```
        
 3.  **配置应用程序**
