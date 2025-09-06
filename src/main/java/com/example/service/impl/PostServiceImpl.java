@@ -3,6 +3,7 @@ package com.example.service.impl;
 import com.example.mapper.PostMapper;
 import com.example.pojo.Post;
 import com.example.service.PostService;
+import com.example.utils.UserContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,12 +26,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public void createPost(Post post) {
         // 从Spring Security 的上下文中获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        // 获取之前存入的claims
-        Map<String, Object> claims = (Map<String, Object>)authentication.getPrincipal();
-        Number userIdNumber = (Number) claims.get("id");
-        long userId = userIdNumber.longValue();
+        Long userId = UserContext.getUserId();
 
         post.setUserId(userId);
         postMapper.insertPost(post);
@@ -44,10 +40,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public List<Post> getPostsByCurrentUser() {
         // 从 SecurityContextHolder 获取当前登录用户的信息
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
-        Number userIdNumber = (Number) claims.get("id");
-        Long currentUserId = userIdNumber.longValue();
+        Long currentUserId = UserContext.getUserId();
 
         // 调用 Mapper 方法，传入当前用户的ID
         return postMapper.findByUserId(currentUserId);
@@ -56,10 +49,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean updatePost(Post post) {
         // 从 Spring Security 的上下文中获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
-        Number userIdNumber = (Number) claims.get("id");
-        Long currentUserId = userIdNumber.longValue();
+        Long currentUserId = UserContext.getUserId();
         
         // 确认帖子是否属于当前用户
         Post existingPost = postMapper.findByIdAndUserId(post.getId(), currentUserId);
@@ -75,10 +65,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean deletePost(Long postId) {
         // 从 Spring Security 的上下文中获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Map<String, Object> claims = (Map<String, Object>) authentication.getPrincipal();
-        Number userIdNumber = (Number) claims.get("id");
-        Long currentUserId = userIdNumber.longValue();
+        Long currentUserId = UserContext.getUserId();
         
         // 删除帖子（只有帖子作者才能删除）
         int rowsAffected = postMapper.deleteByIdAndUserId(postId, currentUserId);

@@ -16,8 +16,6 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
-    // 移除了 PasswordEncoder 的注入
-
     @Override
     public int addOneUser(User user) {
         // 检查用户名和邮箱是否被占用 (逻辑不变)

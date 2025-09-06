@@ -36,9 +36,17 @@ public class SecurityConfig {
                 // authorizeHttpRequests 为 AuthorizationFilter 编写一本“规则手册”
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/users/register", "/users/login").permitAll()
+                        // 对帖子的限制
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/posts/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/posts/**").authenticated()
+                        // 这一规则同时限制了帖子和评论的创建
+                        .requestMatchers(HttpMethod.POST, "/posts/**").authenticated()
+
+                        // 对评论的限制
+                        .requestMatchers(HttpMethod.GET, "/**/comments").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/comments/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/comments/**").authenticated()
                         .anyRequest().authenticated()
                 );
 
