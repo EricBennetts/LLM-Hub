@@ -79,6 +79,49 @@ const PostDetail = {
                     <div class="post-content-full">{{ post.content }}</div>
                 </div>
                 
+                <div class="comments-section">
+                <hr>
+                <h3>评论 ({{ comments.length }})</h3>
+                <!-- 发表评论表单 (仅登录用户可见) -->
+                <div v-if="$root.loggedInUser" class="comment-form">
+                    <textarea v-model="newCommentContent" placeholder="写下你的评论..."></textarea>
+                    <button @click="handleCreateComment" class="btn-primary">发表评论</button>
+                </div>
+                 <!-- 未登录提示 -->
+                <div v-else class="comment-login-prompt">
+                    <a href="#" @click.prevent="$root.openLoginModal">登录</a>后参与评论
+                </div>
+                <!-- 评论列表 -->
+                <div class="comments-list">
+                    <div v-if="commentsLoading">正在加载评论...</div>
+                    <div v-else-if="comments.length > 0">
+                        <div class="comment-item" v-for="comment in comments" :key="comment.id">
+                            <div class="comment-meta">
+                                <strong>{{ comment.authorUsername }}</strong>
+                                <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+                            </div>
+                            <!-- 评论内容或编辑框 -->
+                            <div v-if="comment.isEditing">
+                                <textarea v-model="comment.editContent" class="comment-edit-textarea"></textarea>
+                                <div class="comment-actions">
+                                    <button class="btn-secondary btn-sm" @click="cancelEdit(comment)">取消</button>
+                                    <button class="btn-primary btn-sm" @click="handleUpdateComment(comment)">保存</button>
+                                </div>
+                            </div>
+                            <div v-else class="comment-content">
+                                {{ comment.content }}
+                            </div>
+                            <!-- 评论操作按钮 (仅作者可见) -->
+                            <div v-if="!comment.isEditing && isCommentOwner(comment)" class="comment-actions">
+                                <button class="btn-link" @click="startEdit(comment)">编辑</button>
+                                <button class="btn-link btn-link-danger" @click="handleDeleteComment(comment.id)">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else>暂无评论，快来抢沙发吧！</p>
+                </div>
+                </div>
+            </div>
                 <!-- 编辑帖子模态框 -->
                 <div class="modal-overlay" v-if="isEditModalVisible">
                     <div class="modal-content">
@@ -100,7 +143,6 @@ const PostDetail = {
                         </div>
                     </div>
                 </div>
-            </div>
         `,
     data() {
         return {
@@ -111,7 +153,10 @@ const PostDetail = {
             editPost: { // 存储编辑的帖子数据
                 title: '',
                 content: ''
-            }
+            },
+            comments: [],
+            commentsLoading: true,
+            newCommentContent: ''
         };
     },
     computed: {
@@ -189,6 +234,94 @@ const PostDetail = {
                         alert('更新失败，请检查网络或联系管理员。');
                     }
                 });
+        },
+        isCommentOwner(comment) {
+            const root = this.$root;
+            return root.loggedInUser && Number(root.loggedInUser.id) === Number(comment.userId);
+        },
+
+        fetchComments() {
+            this.commentsLoading = true;
+            const postId = this.$route.params.id;
+            axios.get(`http://localhost:8080/posts/${postId}/comments`)
+                .then(response => {
+                    if (response.data.code === 0) {
+                        // 为每条评论添加编辑状态控制字段
+                        this.comments = response.data.data.map(c => ({...c, isEditing: false, editContent: ''}));
+                    } else {
+                        alert('评论加载失败: ' + response.data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取评论出错:', error);
+                    alert('网络错误，无法加载评论。');
+                })
+                .finally(() => {
+                    this.commentsLoading = false;
+                });
+        },
+        handleCreateComment() {
+            if (!this.newCommentContent.trim()) {
+                alert('评论内容不能为空！');
+                return;
+            }
+            const postId = this.post.id;
+            axios.post(`http://localhost:8080/posts/${postId}/comments`, {
+                content: this.newCommentContent
+            }).then(response => {
+                if (response.data.code === 0) {
+                    this.newCommentContent = '';
+                    this.fetchComments();
+                } else {
+                    alert('评论失败: ' + response.data.message);
+                }
+            }).catch(this.handleApiError);
+        },
+        handleDeleteComment(commentId) {
+            if (!confirm('确定要删除这条评论吗？此操作不可恢复！')) {
+                return;
+            }
+            axios.delete(`http://localhost:8080/comments/${commentId}`)
+                .then(response => {
+                    if (response.data.code === 0) {
+                        alert('删除成功！');
+                        this.fetchComments();
+                    } else {
+                        alert('删除失败: ' + response.data.message);
+                    }
+                })
+                .catch(this.handleApiError);
+        },
+        startEdit(comment) {
+            comment.isEditing = true;
+            comment.editContent = comment.content;
+        },
+        cancelEdit(comment) {
+            comment.isEditing = false;
+        },
+        handleUpdateComment(comment) {
+            if (!comment.editContent.trim()) {
+                alert('评论内容不能为空！');
+                return;
+            }
+            axios.put(`http://localhost:8080/comments/${comment.id}`, {
+                content: comment.editContent
+            }).then(response => {
+                if (response.data.code === 0) {
+                    comment.isEditing = false;
+                    comment.content = comment.editContent;
+                } else {
+                    alert('更新失败: ' + response.data.message);
+                }
+            }).catch(this.handleApiError);
+        },
+        handleApiError(error) {
+            console.error('API请求出错:', error);
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                alert('认证失败，请重新登录后再试。');
+            } else {
+                alert('操作失败，请检查网络或联系管理员。');
+            }
         }
     },
     created() {
@@ -209,6 +342,7 @@ const PostDetail = {
             .finally(() => {
                 this.loading = false; // 不管成功失败，加载都结束了
             });
+        this.fetchComments();
     }
 };
 

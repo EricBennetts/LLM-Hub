@@ -38,13 +38,13 @@ public class SecurityConfig {
                         .requestMatchers("/users/register", "/users/login").permitAll()
                         // 对帖子的限制
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/posts").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/posts/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/posts/**").authenticated()
-                        // 这一规则同时限制了帖子和评论的创建
-                        .requestMatchers(HttpMethod.POST, "/posts/**").authenticated()
-
+                        
                         // 对评论的限制
-                        .requestMatchers(HttpMethod.GET, "/**/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/posts/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/posts/*/comments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/comments/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/comments/**").authenticated()
                         .anyRequest().authenticated()

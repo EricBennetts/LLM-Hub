@@ -426,3 +426,112 @@ body {
 .btn-danger:hover {
     opacity: 0.8;
 }
+
+.comments-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e8e8e8;
+}
+.comments-section h3 {
+     margin-bottom: 20px;
+     color: #333;
+}
+
+/* 评论表单 */
+.comment-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* 让按钮靠右 */
+    margin-bottom: 25px;
+}
+
+.comment-form textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 15px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+/* 未登录提示 */
+.comment-login-prompt {
+    padding: 15px;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* 评论列表 */
+.comment-item {
+    padding: 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.comment-item:last-child {
+    border-bottom: none;
+}
+
+.comment-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+
+.comment-meta strong {
+    color: #007bff;
+}
+
+.comment-meta .comment-time {
+    color: #888;
+}
+
+.comment-content {
+    color: #555;
+    line-height: 1.6;
+    white-space: pre-wrap; /* 保留换行和空格 */
+}
+
+/* 评论操作按钮 */
+.comment-actions {
+    margin-top: 8px;
+    text-align: right;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 0.85em;
+    margin-left: 10px;
+}
+.btn-link:hover {
+    text-decoration: underline;
+}
+.btn-link-danger {
+    color: #dc3545;
+}
+
+.comment-edit-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid #007bff; /* 编辑时高亮边框 */
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 13px;
+    margin-left: 10px;
+}
