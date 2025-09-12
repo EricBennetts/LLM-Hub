@@ -9,3 +9,6 @@ spring.datasource.password={Your_Database_Password}
 
 # 配置MyBatis日志输出
 mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
+
+spring.data.redis.host={Your_Redis_Host}
+spring.data.redis.port={Your_Redis_Port}

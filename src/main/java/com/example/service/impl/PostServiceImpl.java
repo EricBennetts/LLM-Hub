@@ -5,6 +5,9 @@ import com.example.pojo.Post;
 import com.example.service.PostService;
 import com.example.utils.UserContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -19,11 +22,14 @@ public class PostServiceImpl implements PostService {
     private PostMapper postMapper;
 
     @Override
+    @Cacheable(value = "posts")
     public List<Post> getAllPosts() {
+        System.out.println("--- 正在从数据库查询所有帖子 ---");
         return postMapper.findAllWithAuthor();
     }
 
     @Override
+    @CacheEvict(value = "posts", allEntries = true)
     public void createPost(Post post) {
         // 从Spring Security 的上下文中获取当前登录用户
         Long userId = UserContext.getUserId();
@@ -33,7 +39,9 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Cacheable(value = "post_detail", key = "#id")
     public Post getPostById(Long id) {
+        System.out.println("--- 正在从数据库查询帖子详情 ID: " + id + " ---");
         return postMapper.findById(id);
     }
 
@@ -47,6 +55,10 @@ public class PostServiceImpl implements PostService {
     }
     
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "posts", allEntries = true),
+            @CacheEvict(value = "post_detail", key = "#post.id")
+    })
     public boolean updatePost(Post post) {
         // 从 Spring Security 的上下文中获取当前登录用户
         Long currentUserId = UserContext.getUserId();
@@ -63,6 +75,10 @@ public class PostServiceImpl implements PostService {
     }
     
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "posts", allEntries = true),
+            @CacheEvict(value = "post_detail", key = "#postId")
+    })
     public boolean deletePost(Long postId) {
         // 从 Spring Security 的上下文中获取当前登录用户
         Long currentUserId = UserContext.getUserId();
