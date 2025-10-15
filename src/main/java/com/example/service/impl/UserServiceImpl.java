@@ -4,6 +4,7 @@ import com.example.mapper.UserMapper;
 import com.example.pojo.User;
 import com.example.service.UserService;
 import com.example.utils.JwtUtil;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Override
     public int addOneUser(User user) {
@@ -28,8 +32,14 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("电子邮箱 '" + user.getEmail() + "' 已被注册");
         }
 
-        // 直接将带有明文密码的用户信息存入数据库
-        return userMapper.insertUser(user);
+        int result = userMapper.insertUser(user);
+        if (result > 0) {
+            // 将消息发送到RabbitMQ消息队列中
+            // 第一个参数是目标队列的名称
+            // 第二个参数是消息内容
+            rabbitTemplate.convertAndSend("welcome.email.queue", user.getEmail());
+        }
+        return result;
     }
 
     @Override
