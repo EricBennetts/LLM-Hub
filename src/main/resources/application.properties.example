@@ -1,14 +1,38 @@
+# 应用名称
 spring.application.name=LLM-Hub
+# MyBatis 驼峰命名转换
 mybatis.configuration.map-underscore-to-camel-case=true
 
-# 配置数据库连接信息
-spring.datasource.url={Your_Database_URL}
-spring.datasource.driver-class-name={Your_Database_Driver_Class_Name}
-spring.datasource.username={Your_Database_Username}
-spring.datasource.password={Your_Database_Password}
+# 数据库连接配置
+spring.datasource.url=jdbc:mysql://localhost:3306/your_database_name
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.username=your_database_username
+spring.datasource.password=your_database_password
 
-# 配置MyBatis日志输出
+# MyBatis 日志配置
 mybatis.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 
-spring.data.redis.host={Your_Redis_Host}
-spring.data.redis.port={Your_Redis_Port}
+# Redis 配置
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+
+# 缓存类型配置
+# 不使用 Redis 时
+spring.cache.type=none
+# 使用 Redis 时
+# spring.cache.type=redis
+
+# RabbitMQ 配置
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=your_rabbitmq_username
+spring.rabbitmq.password=your_rabbitmq_password
+
+# 邮件配置
+spring.mail.host=smtp.your-email-provider.com
+spring.mail.port=587
+spring.mail.username=your-email@domain.com
+spring.mail.password=your-email-password-or-app-password
+spring.mail.protocol=smtp
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
