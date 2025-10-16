@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Post implements Serializable {
+    private static final long serialVersionUID = 3L;
+
     private Long id;
     private String title;
     private String content;

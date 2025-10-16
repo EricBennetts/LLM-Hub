@@ -15,6 +15,14 @@ public interface UserMapper {
     User findByUsername(String username);
 
     /**
+     * 根据ID查询用户
+     * @param id 用户ID
+     * @return 如果找到用户，则返回 User 对象；否则返回 null
+     */
+    @Select("SELECT * FROM user WHERE id = #{id}")
+    User findById(Long id);
+
+    /**
      * 根据电子邮箱查询用户
      * @param email 电子邮箱
      * @return 如果找到用户，则返回 User 对象；否则返回 null

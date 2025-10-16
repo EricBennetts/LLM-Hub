@@ -4,7 +4,9 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class Comment {
+public class Comment implements java.io.Serializable {
+    private static final long serialVersionUID = 2L;
+
     private Long id;
     private String content;
     private Long userId;
