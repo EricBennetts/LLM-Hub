@@ -40,7 +40,7 @@ public class CommentServiceImpl implements CommentService {
         // 如果帖子作者ID和当前用户ID不同，则发送消息给MQ
         if (commentedPost != null && !commentedPost.getUserId().equals(currentUserId)) {
             // 将评论对象作为消息发送到队列
-            rabbitTemplate.convertAndSend("new.comment.queue", commentedPost);
+            rabbitTemplate.convertAndSend("new.comment.queue", comment);
         }
 
     }
