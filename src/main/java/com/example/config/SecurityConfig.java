@@ -47,6 +47,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/posts/*/comments").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/comments/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/comments/**").authenticated()
+
+                        // 放行 /ws/**
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/notifications/**").authenticated()
                         .anyRequest().authenticated()
                 );
 

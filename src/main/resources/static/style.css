@@ -535,3 +535,104 @@ body {
     font-size: 13px;
     margin-left: 10px;
 }
+
+
+
+/* --- 通知中心样式 --- */
+.notification-area {
+    position: relative; /* 关键：为下拉框的绝对定位提供父容器 */
+    display: flex;
+    align-items: center;
+}
+
+.notification-bell {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px; /* 铃铛图标大小 */
+    position: relative;
+    padding: 5px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #dc3545; /* 红色徽章 */
+    color: white;
+    border-radius: 50%;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 100%; /* 从父元素下方开始 */
+    right: 0;
+    width: 350px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1001; /* 确保在最上层 */
+    margin-top: 10px; /* 与铃铛图标的距离 */
+}
+
+.dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.dropdown-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.no-notifications {
+    padding: 40px 20px;
+    text-align: center;
+    color: #888;
+}
+
+.notification-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.notification-link {
+    display: block;
+    padding: 12px 15px;
+    text-decoration: none;
+    color: #333;
+    border-bottom: 1px solid #f0f0f0;
+}
+.notification-list li:last-child .notification-link {
+    border-bottom: none;
+}
+
+.notification-link:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-content {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.notification-list li.is-read .notification-link {
+    background-color: #f0f2f5; /* 已读通知背景色变灰 */
+    opacity: 0.7;
+}

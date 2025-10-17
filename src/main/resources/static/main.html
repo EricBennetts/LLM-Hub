@@ -6,6 +6,8 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,6 +26,31 @@
             <!-- 情况B: 如果用户已登录 -->
             <div v-else class="user-info">
                 <span>欢迎, {{ loggedInUser.username }}</span>
+                <div class="notification-area">
+                    <button class="notification-bell" @click="toggleNotificationDropdown">
+                        <span>🔔</span> <!-- 使用 emoji 作为图标 -->
+                        <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount }}</span>
+                    </button>
+                    <!-- 通知下拉框 -->
+                    <div v-if="isNotificationDropdownVisible" class="notification-dropdown">
+                        <div class="dropdown-header">
+                            <h3>消息通知</h3>
+                            <button class="btn-link" @click="markAllAsRead">全部已读</button>
+                        </div>
+                        <div v-if="notifications.length === 0" class="no-notifications">
+                            暂无通知
+                        </div>
+                        <ul v-else class="notification-list">
+                            <li v-for="notification in notifications" :key="notification.id"
+                                :class="{ 'is-read': notification.read }">
+                                <router-link :to="'/posts/' + notification.postId" @click="handleNotificationClick(notification)" class="notification-link">
+                                    <p class="notification-content">{{ notification.content }}</p>
+                                    <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
+                                </router-link>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
                 <router-link to="/my-posts" class="nav-link">我的帖子</router-link>
                 <button class="nav-btn-create" @click="openCreatePostModal">发布新帖</button>
                 <button class="nav-btn-logout" @click="logout">退出</button>

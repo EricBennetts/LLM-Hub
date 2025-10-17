@@ -56,6 +56,9 @@ public class NotificationServiceImpl implements NotificationService {
         // 通过 WebSocket 将新通知推送到指定用户
 
         System.out.println("准备推送通知给用户: " + post.getUserId());
+        // 执行convertAndSendToUser后，消息就已经转换为JSON并发送往目标用户了
+        // 从convertAndSendToUser名字即可得知，目的地应该是一个用户专属的，会在前面加上/user前缀
+        // 最终的目标路径应该是/user/{userId}/queue/notifications
         messagingTemplate.convertAndSendToUser(
                 post.getUserId().toString(),      // 目标用户的ID (必须是字符串)
                 "/queue/notifications",           // 目标路径 (客户端订阅的路径)

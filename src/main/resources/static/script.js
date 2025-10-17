@@ -433,29 +433,14 @@ const app = createApp({
                 title: '',
                 content: ''
             },
-            routerViewKey: 0 // 用于刷新router-view的key
+            routerViewKey: 0, // 用于刷新router-view的key
+            stompClient: null,                      // WebSocket STOMP 客户端实例
+            notifications: [],                      // 存放通知列表
+            unreadCount: 0,                         // 未读通知数量
+            isNotificationDropdownVisible: false,   // 控制通知下拉框的显示
         }
     },
     methods: {
-        // fetchPosts() {
-        //     axios.get('http://localhost:8080/posts')
-        //         .then(response => {
-        //             if (response.data.code === 0) {
-        //                 this.posts = response.data.data;
-        //             } else {
-        //                 alert('帖子加载失败: ' + response.data.message);
-        //             }
-        //         })
-        //         .catch(error => {
-        //             console.error('获取帖子列表出错:', error);
-        //             alert('网络错误，无法加载帖子列表。');
-        //         });
-        // },
-        // formatTime(dateTimeString) {
-        //     if (!dateTimeString) return '';
-        //     const date = new Date(dateTimeString);
-        //     return date.toLocaleString();
-        // },
         // --- 登录模态框控制 ---
         openLoginModal() {
             this.loginUser = { username: '', password: '' }; // 清空输入
@@ -523,11 +508,103 @@ const app = createApp({
                         // 3. (重要)为后续所有axios请求设置默认的认证头
                         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
+                        this.connectWebSocket();
+                        this.fetchNotifications();
+
                         this.closeLoginModal();
                     } else {
                         alert('登录失败: ' + response.data.message);
                     }
                 }).catch(error => alert('登录失败，网络或服务器错误。'));
+        },
+        connectWebSocket() {
+            if (!this.loggedInUser) return; // 未登录则不连接
+            if (this.stompClient && this.stompClient.connected) {
+                console.log("WebSocket 已连接。");
+                return;
+            }
+
+            const socket = new SockJS('http://localhost:8080/ws');
+            this.stompClient = Stomp.over(socket);
+
+            // 在 STOMP 连接头中传递 JWT Token 进行认证
+            const headers = {
+                'Authorization': `Bearer ${localStorage.getItem('jwt-token')}`
+            };
+
+            this.stompClient.connect(headers, (frame) => {
+                console.log('WebSocket 连接成功: ' + frame);
+
+                // 订阅个人通知队列
+                this.stompClient.subscribe('/user/queue/notifications', (message) => {
+                    const newNotification = JSON.parse(message.body);
+                    console.log("收到新通知:", newNotification);
+
+                    // 在列表开头添加新通知，并更新未读数量
+                    this.notifications.unshift(newNotification);
+                    this.unreadCount++;
+
+                    // 简单的桌面通知提示
+                    if (Notification && Notification.permission === "granted") {
+                        new Notification("LLM-Hub 新通知", {
+                            body: newNotification.content,
+                        });
+                    }
+                });
+            }, (error) => {
+                console.error('WebSocket 连接失败:', error);
+                // 可以加入重连逻辑
+            });
+        },
+        disconnectWebSocket() {
+            if (this.stompClient) {
+                this.stompClient.disconnect(() => {
+                    console.log("WebSocket 已断开。");
+                    this.stompClient = null;
+                });
+            }
+        },
+        fetchNotifications() {
+            axios.get('http://localhost:8080/api/notifications/unread-count')
+                .then(response => {
+                    if(response.data.code === 0) {
+                        this.unreadCount = response.data.data;
+                    }
+                });
+        },
+        toggleNotificationDropdown() {
+            this.isNotificationDropdownVisible = !this.isNotificationDropdownVisible;
+            // 打开下拉框时，获取完整的通知列表
+            if (this.isNotificationDropdownVisible && this.notifications.length === 0) {
+                axios.get('http://localhost:8080/api/notifications')
+                    .then(response => {
+                        if (response.data.code === 0) {
+                            this.notifications = response.data.data;
+                        }
+                    });
+            }
+        },
+        handleNotificationClick(notification) {
+            // 如果通知未读，则调用API标记为已读
+            if (!notification.read) {
+                axios.post(`http://localhost:8080/api/notifications/${notification.id}/read`)
+                    .then(response => {
+                        if (response.data.code === 0) {
+                            notification.read = true; // 前端同步状态
+                            this.unreadCount--;
+                        }
+                    });
+            }
+            this.isNotificationDropdownVisible = false; // 点击后关闭下拉框
+            // Vue Router 会处理后续的跳转
+        },
+        markAllAsRead() {
+            // 简单实现：遍历所有未读通知并逐个标记
+            this.notifications.forEach(n => {
+                if (!n.read) {
+                    this.handleNotificationClick(n);
+                }
+            });
         },
         logout() {
             // 1. 从 localStorage 中移除JWT
@@ -619,6 +696,13 @@ const app = createApp({
                 this.loggedInUser = userData;
                 // 同时，为axios设置认证头，以便后续请求能够携带JWT
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                this.connectWebSocket();
+                this.fetchNotifications();
+
+                // 请求浏览器桌面通知权限
+                if (Notification && Notification.permission !== "granted") {
+                    Notification.requestPermission();
+                }
             } else {
                 // 如果token解析失败（可能是无效的或过期的），则清理掉
                 localStorage.removeItem('jwt-token');
