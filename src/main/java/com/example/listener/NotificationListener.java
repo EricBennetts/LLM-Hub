@@ -1,4 +1,3 @@
-// File: src/main/java/com/example/listener/NotificationListener.java
 package com.example.listener;
 
 import com.example.pojo.Comment;

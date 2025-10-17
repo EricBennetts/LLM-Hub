@@ -10,6 +10,7 @@ public class RabbitMQConfig {
     public static final String WELCOME_EMAIL_QUEUE = "welcome.email.queue";
     public static final String NEW_COMMENT_QUEUE = "new.comment.queue";
 
+
     @Bean
     public Queue welcomeEmailQueue() {
         // 若RabbitMQ中不存在一个名为"welcome.email.queue"的队列则创建一个名为 "welcome.email.queue" 的队列
