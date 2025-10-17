@@ -441,6 +441,7 @@ const app = createApp({
         }
     },
     methods: {
+        formatTime,
         // --- 登录模态框控制 ---
         openLoginModal() {
             this.loginUser = { username: '', password: '' }; // 清空输入

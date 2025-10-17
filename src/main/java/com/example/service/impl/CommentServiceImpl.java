@@ -33,7 +33,7 @@ public class CommentServiceImpl implements CommentService {
         Long currentUserId = UserContext.getUserId();
         comment.setUserId(currentUserId);
         commentMapper.insert(comment);
-
+        System.out.println("评论的id为" + comment.getId());
         // 添加评论后，发送消息给MQ，通知用户
         // 首先获取被评论的帖子，以得到帖子作者的ID
         Post commentedPost = postMapper.findById(comment.getPostId());

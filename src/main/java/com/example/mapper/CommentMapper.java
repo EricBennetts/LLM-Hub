@@ -9,6 +9,7 @@ import java.util.List;
 public interface CommentMapper {
 
     @Insert("INSERT INTO comment (content, user_id, post_id) VALUES (#{content}, #{userId}, #{postId})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Comment comment);
 
     @Select("SELECT c.*, u.username as authorUsername FROM comment c " +
