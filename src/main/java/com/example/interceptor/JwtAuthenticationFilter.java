@@ -1,5 +1,6 @@
 package com.example.interceptor;
 
+import com.example.pojo.UserPrincipal;
 import com.example.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,7 +33,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // 解析成功，将认证信息存入 Spring Security 的上下文
             // 这样，Spring Security 就知道当前用户是谁，并且是已认证的
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(claims, null, null);
+            UserPrincipal userPrincipal = new UserPrincipal(claims);
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userPrincipal, null, null);
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
         } catch (Exception e) {
