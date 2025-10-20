@@ -1,15 +1,20 @@
 package com.example.service.impl;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.example.mapper.UserMapper;
 import com.example.pojo.User;
 import com.example.service.UserService;
 import com.example.utils.JwtUtil;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -19,6 +24,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public int addOneUser(User user) {
@@ -63,5 +71,20 @@ public class UserServiceImpl implements UserService {
         claims.put("username", loginUser.getUsername());
 
         return JwtUtil.genToken(claims);
+    }
+
+    @Override
+    public void logout(String token) {
+        DecodedJWT decodedJWT = JWT.decode(token);
+        Date expiresAt = decodedJWT.getExpiresAt();
+
+        long remainingMillis = expiresAt.getTime() - System.currentTimeMillis();
+        if (remainingMillis > 0) {
+            stringRedisTemplate.opsForValue().set(
+                    "jwt:blacklist:" + token,
+                    "1",
+                    remainingMillis,
+                    TimeUnit.MILLISECONDS);
+        }
     }
 }

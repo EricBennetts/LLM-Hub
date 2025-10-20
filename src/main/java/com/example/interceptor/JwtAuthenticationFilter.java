@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,9 @@ import java.util.Map;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -29,6 +34,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String actualToken = token.substring(7);
+
+            // 检查token是否在Redis黑名单中
+            Boolean isBlacklisted = stringRedisTemplate.hasKey("jwt:blacklist:" + actualToken);
+            if (Boolean.TRUE.equals(isBlacklisted)) {
+                throw new Exception("Token is blacklisted!");
+            }
             Map<String, Object> claims = JwtUtil.parseToken(actualToken);
 
             // 解析成功，将认证信息存入 Spring Security 的上下文

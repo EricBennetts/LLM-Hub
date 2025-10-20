@@ -3,6 +3,7 @@ package com.example.controller;
 import com.example.pojo.Result;
 import com.example.pojo.User;
 import com.example.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,5 +35,18 @@ public class UserController {
         } catch (RuntimeException e) {
             return Result.error(e.getMessage());
         }
+    }
+
+    // 登出
+    @PostMapping("/logout")
+    public Result logout(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            // 删除token
+            userService.logout(token);
+            return Result.success();
+        }
+        return Result.error("未登录");
     }
 }

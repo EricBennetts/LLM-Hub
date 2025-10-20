@@ -7,4 +7,6 @@ public interface UserService {
 
     // 用户登录接口
     String login(User user);
+
+    void logout(String token);
 }

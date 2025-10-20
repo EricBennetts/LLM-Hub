@@ -36,6 +36,7 @@ public class SecurityConfig {
                 // authorizeHttpRequests 为 AuthorizationFilter 编写一本“规则手册”
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/users/register", "/users/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/logout").authenticated()
                         // 对帖子的限制
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/posts").authenticated()
