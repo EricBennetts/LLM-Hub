@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.annotation.AntiDuplicate;
 import com.example.pojo.Post;
 import com.example.pojo.Result;
 import com.example.service.PostService;
@@ -25,6 +26,7 @@ public class PostController {
 
     // 创建帖子 (POST /posts)
     @PostMapping
+    @AntiDuplicate(time = 5)
     public Result create(@RequestBody Post post) {
         if (post.getTitle() == null || post.getTitle().trim().isEmpty() ||
                 post.getContent() == null || post.getContent().trim().isEmpty()) {
