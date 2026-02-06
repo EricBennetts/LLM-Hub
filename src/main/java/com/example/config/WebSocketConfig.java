@@ -23,7 +23,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // 配置消息代理
         // 启用一个简单的内存消息代理，并将消息的目标前缀设置为 "/topic" 和 "/user"
         // "/user" 前缀用于点对点消息
-        registry.enableSimpleBroker("/topic", "/user");
+        // 配置心跳：第一个参数是服务器向客户端发送心跳的间隔（10秒），第二个参数是服务器期望客户端发送心跳的间隔（10秒）
+        registry.enableSimpleBroker("/topic", "/user")
+                .setHeartbeatValue(new long[]{10000, 10000});
         // 设置客户端发送消息的目标前缀
         registry.setApplicationDestinationPrefixes("/app");
     }
