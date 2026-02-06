@@ -528,6 +528,12 @@ const app = createApp({
             const socket = new SockJS('http://localhost:8080/ws');
             this.stompClient = Stomp.over(socket);
 
+            // 配置心跳，与后端保持一致或按需调整
+            // outgoing: 客户端发送心跳的间隔（毫秒），0表示不发送
+            // incoming: 客户端期望接收服务端心跳的间隔（毫秒），0表示不接收
+            this.stompClient.heartbeat.outgoing = 8000;
+            this.stompClient.heartbeat.incoming = 10000;
+
             // 在 STOMP 连接头中传递 JWT Token 进行认证
             const headers = {
                 'Authorization': `Bearer ${localStorage.getItem('jwt-token')}`
