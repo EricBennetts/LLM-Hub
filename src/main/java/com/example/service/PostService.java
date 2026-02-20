@@ -15,4 +15,6 @@ public interface PostService {
     boolean updatePost(Post post);
     
     boolean deletePost(Long postId);
+
+    String generateAiSummary(Long postId);
 }

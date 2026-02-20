@@ -83,4 +83,15 @@ public class PostController {
         }
     }
 
+    @PostMapping("/{id}/ai-summary")
+    @AntiDuplicate(time = 10)
+    public Result<String> getAiSummary(@PathVariable Long id) {
+        try {
+            String summary = postService.generateAiSummary(id);
+            return Result.success(summary);
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
 }

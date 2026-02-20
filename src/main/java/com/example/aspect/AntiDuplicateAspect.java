@@ -20,7 +20,7 @@ public class AntiDuplicateAspect {
 
     @Around("@annotation(antiDuplicate)") // 拦截加了 @AntiDuplicate 注解的方法
     public Object around(ProceedingJoinPoint joinPoint, AntiDuplicate antiDuplicate) throws Throwable {
-        // 1. 获取当前用户ID (你确认过，这里一定有值)
+        // 1. 获取当前用户ID (对于登陆的用户，这里一定有值)
         Long userId = UserContext.getUserId();
 
         // 2. 生成一个唯一的 Redis Key

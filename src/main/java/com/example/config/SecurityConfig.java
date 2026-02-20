@@ -49,6 +49,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/comments/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/comments/**").authenticated()
 
+                        // 对AI总结的限制
+                        .requestMatchers(HttpMethod.POST, "/posts/*/ai-summary").authenticated()
+
                         // 放行 /ws/**
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/notifications/**").authenticated()

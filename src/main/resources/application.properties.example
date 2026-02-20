@@ -36,3 +36,7 @@ spring.mail.password=your-email-password-or-app-password
 spring.mail.protocol=smtp
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
+
+# Google AI 配置
+ai.google.api-key=Your-Gemini-API-Key
+ai.google.model=Your-Preferred-Gemini-Model

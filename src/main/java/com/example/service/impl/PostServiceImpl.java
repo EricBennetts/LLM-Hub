@@ -3,6 +3,7 @@ package com.example.service.impl;
 import com.example.mapper.PostMapper;
 import com.example.pojo.Post;
 import com.example.service.PostService;
+import com.example.utils.GenerateTextFromTextInput;
 import com.example.utils.UserContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -21,6 +22,8 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private PostMapper postMapper;
 
+    @Autowired
+    private GenerateTextFromTextInput aiGenerator;
     @Override
     @Cacheable(value = "posts")
     public List<Post> getAllPosts() {
@@ -86,5 +89,34 @@ public class PostServiceImpl implements PostService {
         // 删除帖子（只有帖子作者才能删除）
         int rowsAffected = postMapper.deleteByIdAndUserId(postId, currentUserId);
         return rowsAffected > 0;
+    }
+
+    @Override
+    public String generateAiSummary(Long postId) {
+        // 1. 获取帖子内容
+        Post post = postMapper.findById(postId);
+        if (post == null) {
+            throw new RuntimeException("帖子不存在");
+        }
+
+        String content = post.getContent();
+        if (content == null || content.trim().length() < 10) {
+            return "内容太短，无需总结。";
+        }
+
+        // 2. 构造 Prompt (提示词)
+        // 截取一部分内容防止 token 溢出（假设限制 2000 字，可视模型情况调整）
+        String contentToSummarize = content.length() > 2000 ? content.substring(0, 2000) : content;
+
+        String prompt = "请用简洁的中文总结以下帖子的核心观点（50字以内）：\n\n" + contentToSummarize;
+
+        // 3. 调用 AI 工具类
+        try {
+            // 使用你工具类中的实例方法
+            return aiGenerator.generateText(prompt);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("AI 服务暂时不可用，请稍后再试");
+        }
     }
 }
