@@ -1,10 +1,16 @@
 package com.example.controller;
 
 import com.example.annotation.AntiDuplicate;
+import com.example.config.RabbitMQConfig;
+import com.example.pojo.AiSummaryTask;
 import com.example.pojo.Post;
 import com.example.pojo.Result;
 import com.example.service.PostService;
+import com.example.utils.UserContext;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +22,12 @@ public class PostController {
 
     @Autowired
     private PostService postService;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     // 获取所有帖子 (GET /posts)
     @GetMapping
@@ -84,13 +96,23 @@ public class PostController {
     }
 
     @PostMapping("/{id}/ai-summary")
-    @AntiDuplicate(time = 10)
+    @AntiDuplicate(time = 3)
     public Result<String> getAiSummary(@PathVariable Long id) {
+        // 1. 检查缓存
+        String cacheKey = "post:ai_summary:" + id;
+        String cachedSummary = redisTemplate.opsForValue().get(cacheKey);
+        if (!StringUtils.hasText(cachedSummary)) {
+            // 缓存命中！不需要走MQ，直接同步返回！极其丝滑！
+            return Result.success(cachedSummary);
+        }
+        // 2。 缓存未命中
+        Long currentUserId = UserContext.getUserId();
         try {
-            String summary = postService.generateAiSummary(id);
-            return Result.success(summary);
-        } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
+            AiSummaryTask task = new AiSummaryTask(id, currentUserId);
+            rabbitTemplate.convertAndSend(RabbitMQConfig.AI_SUMMARY_QUEUE, task);
+            return Result.success("AI助手已开始阅读并总结，请留意页面通知...");
+        } catch (Exception e) {
+            return Result.error("提交AI任务失败：" + e.getMessage());
         }
     }
 
