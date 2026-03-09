@@ -5,6 +5,7 @@ import com.example.pojo.Post;
 import com.example.service.PostService;
 import com.example.utils.GenerateTextFromTextInput;
 import com.example.utils.UserContext;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -92,6 +93,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @CircuitBreaker(name = "googleAi", fallbackMethod = "aiSummaryFallback")
     public String generateAiSummary(Long postId) {
         // 1. 获取帖子内容
         Post post = postMapper.findById(postId);
@@ -118,5 +120,10 @@ public class PostServiceImpl implements PostService {
             e.printStackTrace();
             throw new RuntimeException("AI 服务暂时不可用，请稍后再试");
         }
+    }
+
+    public String aiSummaryFallback(Long postId, Throwable t) {
+        System.err.println("触发AI熔断或降级，原因: " + t.getMessage());
+        return "【系统提示】AI助手当前被限流，请稍后再试...";
     }
 }

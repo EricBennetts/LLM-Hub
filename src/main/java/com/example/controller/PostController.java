@@ -105,7 +105,7 @@ public class PostController {
             // 缓存命中，不需要走MQ，直接同步返回
             return Result.success(cachedSummary);
         }
-        // 2。 缓存未命中
+        // 2. 缓存未命中
         Long currentUserId = UserContext.getUserId();
         try {
             AiSummaryTask task = new AiSummaryTask(id, currentUserId);

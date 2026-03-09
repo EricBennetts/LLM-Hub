@@ -40,3 +40,9 @@ spring.mail.properties.mail.smtp.starttls.enable=true
 # Google AI 配置
 ai.google.api-key=Your-Gemini-API-Key
 ai.google.model=Your-Preferred-Gemini-Model
+
+# Resilience4j CircuitBreaker 配置 (googleAi 实例)
+resilience4j.circuitbreaker.instances.googleAi.failureRateThreshold=50
+resilience4j.circuitbreaker.instances.googleAi.slidingWindowSize=10
+resilience4j.circuitbreaker.instances.googleAi.waitDurationInOpenState=30s
+resilience4j.circuitbreaker.instances.googleAi.recordExceptions[0]=java.lang.Exception
