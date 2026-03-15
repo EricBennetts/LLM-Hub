@@ -27,6 +27,9 @@ spring.rabbitmq.host=localhost
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=your_rabbitmq_username
 spring.rabbitmq.password=your_rabbitmq_password
+spring.rabbitmq.publisher-confirm-type=correlated
+spring.rabbitmq.publisher-returns=true
+spring.rabbitmq.template.mandatory=true
 
 # 邮件配置
 spring.mail.host=smtp.your-email-provider.com

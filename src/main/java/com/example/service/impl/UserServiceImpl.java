@@ -2,18 +2,26 @@ package com.example.service.impl;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.example.mapper.MessageLogMapper;
 import com.example.mapper.UserMapper;
+import com.example.pojo.MessageLog;
 import com.example.pojo.User;
 import com.example.service.UserService;
 import com.example.utils.JwtUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -28,9 +36,16 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private MessageLogMapper messageLogMapper;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int addOneUser(User user) {
-        // 检查用户名和邮箱是否被占用 (逻辑不变)
+        // 1. 检查用户名和邮箱是否被占用
         User foundByUsername = userMapper.findByUsername(user.getUsername());
         if (foundByUsername != null) {
             throw new RuntimeException("用户名 '" + user.getUsername() + "' 已被占用");
@@ -40,12 +55,30 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("电子邮箱 '" + user.getEmail() + "' 已被注册");
         }
 
+        // 2. 插入用户数据
         int result = userMapper.insertUser(user);
         if (result > 0) {
-            // 将消息发送到RabbitMQ消息队列中
-            // 第一个参数是目标队列的名称
-            // 第二个参数是消息内容
-            rabbitTemplate.convertAndSend("welcome.email.queue", user.getEmail());
+            try {
+                // 3. 构建本地消息表记录
+                String messageId = UUID.randomUUID().toString();
+                String queueName = "welcome.email.queue"; // 使用默认交换机，routingKey就是队列名
+                MessageLog log = new MessageLog();
+                log.setMessageId(messageId);
+                log.setExchange(""); // Default exchanger
+                log.setRoutingKey(queueName);
+                log.setContent(objectMapper.writeValueAsString(user.getEmail()));
+                log.setStatus(0);
+                log.setTryCount(0);
+                log.setNextRetryTime(LocalDateTime.now().plusSeconds(30)); // 30s后第一次重试
+                // 4. 消息落库
+                messageLogMapper.insert(log);
+
+                // 5. 发送消息给 RabbitMQ，并带上 CorrelationData
+                CorrelationData correlationData = new CorrelationData(messageId);
+                rabbitTemplate.convertAndSend("", queueName, user.getEmail(), correlationData);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("注册失败，构建欢迎邮件异常: " + e.getMessage());
+            }
         }
         return result;
     }
