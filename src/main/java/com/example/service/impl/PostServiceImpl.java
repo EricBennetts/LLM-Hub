@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,10 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private GenerateTextFromTextInput aiGenerator;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     @Override
     @Cacheable(value = "posts")
     public List<Post> getAllPosts() {
@@ -72,9 +77,11 @@ public class PostServiceImpl implements PostService {
         if (existingPost == null) {
             return false; // 帖子不存在或不属于当前用户
         }
-        
+
         // 更新帖子
         int rowsAffected = postMapper.updatePost(post);
+        String cacheKey = "post:ai_summary:" + post.getId();
+        redisTemplate.delete(cacheKey);
         return rowsAffected > 0;
     }
     
