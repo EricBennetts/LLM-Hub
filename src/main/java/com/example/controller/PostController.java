@@ -106,6 +106,10 @@ public class PostController {
             return Result.success(cachedSummary);
         }
         // 2. 缓存未命中
+        int currentQueueSize = rabbitTemplate.execute(channel -> channel.queueDeclarePassive(RabbitMQConfig.AI_SUMMARY_QUEUE).getMessageCount());
+        if (currentQueueSize > 50) {
+            return Result.error("当前排队人数较多，请稍后再试");
+        }
         Long currentUserId = UserContext.getUserId();
         try {
             AiSummaryTask task = new AiSummaryTask(id, currentUserId);
