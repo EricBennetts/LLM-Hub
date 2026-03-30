@@ -44,8 +44,11 @@ public class MessageRetryJob {
             LocalDateTime nextTime;
             if (currentTry == 1) nextTime = LocalDateTime.now().plusMinutes(5);
             else if (currentTry == 2) nextTime = LocalDateTime.now().plusMinutes(15);
-            else nextTime = LocalDateTime.now().plusHours(1); // 达到3次后，推迟1小时让人工处理
-
+            else {
+                // 达到 3 次，不再自动重试，保持失败状态
+                messageLogMapper.updateRetryInfo(messageId, 2, null);
+                continue; // 跳过发送
+            }
             messageLogMapper.updateRetryInfo(messageId, 0, nextTime);
 
             // 3. 重新发送消息
