@@ -101,7 +101,7 @@ public class PostController {
         // 1. 检查缓存
         String cacheKey = "post:ai_summary:" + id;
         String cachedSummary = redisTemplate.opsForValue().get(cacheKey);
-        if (!StringUtils.hasText(cachedSummary)) {
+        if (StringUtils.hasText(cachedSummary)) {
             // 缓存命中，不需要走MQ，直接同步返回
             return Result.success(cachedSummary);
         }
