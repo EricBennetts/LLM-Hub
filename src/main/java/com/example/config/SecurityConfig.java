@@ -52,6 +52,11 @@ public class SecurityConfig {
                         // 对AI总结的限制
                         .requestMatchers(HttpMethod.POST, "/posts/*/ai-summary").authenticated()
 
+                        // 点赞接口
+                        .requestMatchers(HttpMethod.POST, "/posts/*/like").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/posts/*/like").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/posts/*/like/status").permitAll()
+
                         // 放行 /ws/**
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/notifications/**").authenticated()

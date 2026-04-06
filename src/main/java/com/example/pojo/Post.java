@@ -23,4 +23,6 @@ public class Post implements Serializable {
     // 为了方便前端显示作者信息，我们可以额外增加一个字段
     // 这个字段不属于 post 表，但可以通过数据库连接查询填充
     private String authorUsername;
+    private Integer likeCount;
+    private Boolean likedByCurrentUser; // 非数据库字段，给前端展示用
 }
