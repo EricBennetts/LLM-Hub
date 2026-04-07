@@ -41,11 +41,11 @@ spring.mail.protocol=smtp
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 
-# Google AI 配置
-ai.google.api-key=Your-Gemini-API-Key
-ai.google.model=Your-Preferred-Gemini-Model
+# DeepSeek AI 配置
+ai.deepseek.api-key=Your-DS-Key
+ai.deepseek.model=deepseek-chat
 
-# Resilience4j CircuitBreaker 配置 (googleAi 实例)
+# Resilience4j CircuitBreaker 配置
 resilience4j.circuitbreaker.instances.googleAi.failureRateThreshold=50
 resilience4j.circuitbreaker.instances.googleAi.slidingWindowSize=10
 resilience4j.circuitbreaker.instances.googleAi.waitDurationInOpenState=30s

@@ -1,722 +1,551 @@
 const { createApp } = Vue;
-// --- 辅助函数 ---
-// 将时间格式化函数提取出来，方便多个组件复用
-const formatTime = (dateTimeString) => {
-    if (!dateTimeString) return '';
-    const date = new Date(dateTimeString);
-    return date.toLocaleString();
-};
 
-// 创建帖子列表组件
+const formatTime = (time) => time ? new Date(time).toLocaleString() : '';
+
+// 帖子列表组件
 const PostList = {
-    template: ` <div class="posts-container">
-                <h1>社区帖子</h1>
-                <router-link :to="'/posts/' + post.id" class="post-item-link" v-for="post in posts" :key="post.id">
-                    <div class="post-item">
-                        <h3 class="post-title">{{ post.title }}</h3>
-                        <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
-                        <p class="post-content">{{ post.content }}</p>
-                    </div>
-                </router-link>
-                <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>
-            </div>
-        `,
-    data() {
-        return {
-            posts: []
-        };
-    },
-    methods: {
-        // 将获取帖子列表的逻辑从主应用实例移到这里
-        fetchPosts() {
-            axios.get('http://localhost:8080/posts')
-                .then(response => {
-                    if (response.data.code === 0) {
-                        this.posts = response.data.data;
-                    } else {
-                        alert('帖子加载失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('获取帖子列表出错:', error);
-                    alert('网络错误，无法加载帖子列表。');
-                });
-        },
-        // 组件内部也需要这个方法来格式化时间
-        formatTime
-    },
-    // 当组件被创建时，自动获取帖子列表
-    created() {
-        this.fetchPosts();
-    }
-};
-
-// 创建帖子详情组件
-const PostDetail = {
     template: `
-            <div class="post-detail-container">
-                <!-- 提供一个返回列表的链接，提升用户体验 -->
-                <div class="post-navigation">
-                    <router-link to="/" class="back-link">&larr; 返回列表</router-link>
-                    <!-- 编辑按钮，只有帖子作者才能看到并点击 -->
-                    <!-- 将 v-if="canEdit" 移动到按钮的容器上 -->
-                    <div v-if="canEdit" class="post-actions-inline">
-                        <button class="btn-primary" @click="openEditModal">编辑</button>
-                        <button class="btn-danger" @click="handleDeletePost">删除</button>
-                    </div>
-                </div>
-
-                <!-- 如果帖子正在加载，显示提示信息 -->
-                <div v-if="loading">正在加载帖子...</div>
-
-                <!-- 如果出现错误，显示错误信息 -->
-                <div v-else-if="error">{{ error }}</div>
-
-                <!-- 成功获取到帖子数据后，显示详情 -->
-                <div v-else-if="post">
-                    <h1>{{ post.title }}</h1>
-                    <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>
-                    <div class="post-content-full">{{ post.content }}</div>
-                </div>
-                
-                <div class="comments-section">
-                <hr>
-                <h3>评论 ({{ comments.length }})</h3>
-                <!-- 发表评论表单 (仅登录用户可见) -->
-                <div v-if="$root.loggedInUser" class="comment-form">
-                    <textarea v-model="newCommentContent" placeholder="写下你的评论..."></textarea>
-                    <button @click="handleCreateComment" class="btn-primary">发表评论</button>
-                </div>
-                 <!-- 未登录提示 -->
-                <div v-else class="comment-login-prompt">
-                    <a href="#" @click.prevent="$root.openLoginModal">登录</a>后参与评论
-                </div>
-                <!-- 评论列表 -->
-                <div class="comments-list">
-                    <div v-if="commentsLoading">正在加载评论...</div>
-                    <div v-else-if="comments.length > 0">
-                        <div class="comment-item" v-for="comment in comments" :key="comment.id">
-                            <div class="comment-meta">
-                                <strong>{{ comment.authorUsername }}</strong>
-                                <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
-                            </div>
-                            <!-- 评论内容或编辑框 -->
-                            <div v-if="comment.isEditing">
-                                <textarea v-model="comment.editContent" class="comment-edit-textarea"></textarea>
-                                <div class="comment-actions">
-                                    <button class="btn-secondary btn-sm" @click="cancelEdit(comment)">取消</button>
-                                    <button class="btn-primary btn-sm" @click="handleUpdateComment(comment)">保存</button>
-                                </div>
-                            </div>
-                            <div v-else class="comment-content">
-                                {{ comment.content }}
-                            </div>
-                            <!-- 评论操作按钮 (仅作者可见) -->
-                            <div v-if="!comment.isEditing && isCommentOwner(comment)" class="comment-actions">
-                                <button class="btn-link" @click="startEdit(comment)">编辑</button>
-                                <button class="btn-link btn-link-danger" @click="handleDeleteComment(comment.id)">删除</button>
-                            </div>
-                        </div>
-                    </div>
-                    <p v-else>暂无评论，快来抢沙发吧！</p>
-                </div>
-                </div>
+        <div class="post-container">
+            <!-- 加载状态 -->
+            <div v-if="loading" class="loading-state">
+                <div class="spinner"></div>
+                <p>正在加载内容...</p>
             </div>
-                <!-- 编辑帖子模态框 -->
-                <div class="modal-overlay" v-if="isEditModalVisible">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>编辑帖子</h2>
-                            <button class="close-btn" @click="closeEditModal">&times;</button>
-                        </div>
-                        <div class="form-group-column">
-                            <label for="edit-post-title">标题</label>
-                            <input type="text" id="edit-post-title" v-model="editPost.title">
-                        </div>
-                        <div class="form-group-column">
-                            <label for="edit-post-content">内容</label>
-                            <textarea id="edit-post-content" v-model="editPost.content" rows="8"></textarea>
-                        </div>
-                        <div class="modal-actions">
-                            <button class="btn-secondary" @click="closeEditModal">取消</button>
-                            <button class="btn-primary" @click="handleEditPost">保存</button>
-                        </div>
-                    </div>
-                </div>
-        `,
-    data() {
-        return {
-            post: null, // 用来存放从后端获取的单个帖子数据
-            loading: true, // 加载状态
-            error: null, // 错误信息
-            isEditModalVisible: false, // 控制编辑模态框的可见性
-            editPost: { // 存储编辑的帖子数据
-                title: '',
-                content: ''
-            },
-            comments: [],
-            commentsLoading: true,
-            newCommentContent: ''
-        };
-    },
-    computed: {
-        // 判断当前用户是否可以编辑这个帖子
-        canEdit() {
-            const root = this.$root;
-            if (!root.loggedInUser || !this.post) {
-                return false;
-            }
-            // 统一转换为数字进行比较
-            return Number(root.loggedInUser.id) === Number(this.post.userId);
-        }
-    },
-    methods: {
-        formatTime,
-        openEditModal() {
-            // 将当前帖子数据填充到编辑表单中
-            this.editPost.title = this.post.title;
-            this.editPost.content = this.post.content;
-            this.isEditModalVisible = true;
-        },
-        closeEditModal() {
-            this.isEditModalVisible = false;
-        },
-        handleDeletePost() {
-            if (!confirm('确定要删除这篇帖子吗？此操作不可恢复！')) {
-                return;
-            }
-            
-            const postId = this.post.id;
-            axios.delete(`http://localhost:8080/posts/${postId}`)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('删除成功！');
-                        // 跳转回帖子列表页面
-                        this.$router.push('/');
-                    } else {
-                        alert('删除失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('删除帖子出错:', error);
-                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                        alert('认证失败，请重新登录后再试。');
-                    } else {
-                        alert('删除失败，请检查网络或联系管理员。');
-                    }
-                });
-        },
-        handleEditPost() {
-            // 简单的前端校验
-            if (!this.editPost.title.trim() || !this.editPost.content.trim()) {
-                alert('标题和内容都不能为空！');
-                return;
-            }
-            
-            const postId = this.post.id;
-            axios.put(`http://localhost:8080/posts/${postId}`, this.editPost)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('更新成功！');
-                        // 更新当前页面显示的帖子内容
-                        this.post.title = this.editPost.title;
-                        this.post.content = this.editPost.content;
-                        this.closeEditModal();
-                    } else {
-                        alert('更新失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('更新帖子出错:', error);
-                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                        alert('认证失败，请重新登录后再试。');
-                    } else {
-                        alert('更新失败，请检查网络或联系管理员。');
-                    }
-                });
-        },
-        isCommentOwner(comment) {
-            const root = this.$root;
-            return root.loggedInUser && Number(root.loggedInUser.id) === Number(comment.userId);
-        },
 
-        fetchComments() {
-            this.commentsLoading = true;
-            const postId = this.$route.params.id;
-            axios.get(`http://localhost:8080/posts/${postId}/comments`)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        // 为每条评论添加编辑状态控制字段
-                        this.comments = response.data.data.map(c => ({...c, isEditing: false, editContent: ''}));
-                    } else {
-                        alert('评论加载失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('获取评论出错:', error);
-                    alert('网络错误，无法加载评论。');
-                })
-                .finally(() => {
-                    this.commentsLoading = false;
-                });
-        },
-        handleCreateComment() {
-            if (!this.newCommentContent.trim()) {
-                alert('评论内容不能为空！');
-                return;
-            }
-            const postId = this.post.id;
-            axios.post(`http://localhost:8080/posts/${postId}/comments`, {
-                content: this.newCommentContent
-            }).then(response => {
-                if (response.data.code === 0) {
-                    this.newCommentContent = '';
-                    this.fetchComments();
-                } else {
-                    alert('评论失败: ' + response.data.message);
-                }
-            }).catch(this.handleApiError);
-        },
-        handleDeleteComment(commentId) {
-            if (!confirm('确定要删除这条评论吗？此操作不可恢复！')) {
-                return;
-            }
-            axios.delete(`http://localhost:8080/comments/${commentId}`)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('删除成功！');
-                        this.fetchComments();
-                    } else {
-                        alert('删除失败: ' + response.data.message);
-                    }
-                })
-                .catch(this.handleApiError);
-        },
-        startEdit(comment) {
-            comment.isEditing = true;
-            comment.editContent = comment.content;
-        },
-        cancelEdit(comment) {
-            comment.isEditing = false;
-        },
-        handleUpdateComment(comment) {
-            if (!comment.editContent.trim()) {
-                alert('评论内容不能为空！');
-                return;
-            }
-            axios.put(`http://localhost:8080/comments/${comment.id}`, {
-                content: comment.editContent
-            }).then(response => {
-                if (response.data.code === 0) {
-                    comment.isEditing = false;
-                    comment.content = comment.editContent;
-                } else {
-                    alert('更新失败: ' + response.data.message);
-                }
-            }).catch(this.handleApiError);
-        },
-        handleApiError(error) {
-            console.error('API请求出错:', error);
-            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                alert('认证失败，请重新登录后再试。');
-            } else {
-                alert('操作失败，请检查网络或联系管理员。');
-            }
-        }
-    },
-    created() {
-        // this.$route.params.id 可以获取到URL中的动态部分，也就是帖子的ID
-        const postId = this.$route.params.id;
-        axios.get(`http://localhost:8080/posts/${postId}`)
-            .then(response => {
-                if (response.data.code === 0 && response.data.data) {
-                    this.post = response.data.data;
-                } else {
-                    this.error = '加载失败: ' + (response.data.message || '帖子不存在');
-                }
-            })
-            .catch(error => {
-                console.error('获取帖子详情出错:', error);
-                this.error = '网络错误，无法加载帖子详情。';
-            })
-            .finally(() => {
-                this.loading = false; // 不管成功失败，加载都结束了
-            });
-        this.fetchComments();
-    }
-};
-
-const MyPosts = {
-    // 复用和PostList几乎一样的模板，只是标题不同
-    template: `
-        <div class="posts-container">
-            <h1>我发布的帖子</h1>
-            <router-link to="/" class="back-link">&larr; 返回社区帖子</router-link>
-            <div v-if="loading" class="loading-indicator">正在加载您的帖子...</div>
-            <div v-else-if="posts.length > 0">
-                <router-link :to="'/posts/' + post.id" class="post-item-link" v-for="post in posts" :key="post.id">
-                    <div class="post-item">
-                        <h3 class="post-title">{{ post.title }}</h3>
-                        <p class="post-meta">发布于: {{ formatTime(post.createTime) }}</p>
-                         <p class="post-content-summary">{{ summarizeContent(post.content) }}</p>
+            <!-- 数据列表 -->
+            <div v-else-if="posts.length > 0" class="post-grid">
+                <router-link v-for="post in posts" :key="post.id" :to="'/posts/' + post.id" class="post-card">
+                    <h2 class="post-title">{{ post.title }}</h2>
+                    <div class="post-info">
+                        <span>👤 {{ post.authorUsername }}</span>
+                        <span>🕒 {{ formatTime(post.createTime) }}</span>
+                        <span>👍 {{ post.likeCount || 0 }}</span>
                     </div>
+                    <p class="post-excerpt">{{ post.content.substring(0, 100) }}...</p>
                 </router-link>
             </div>
-            <p v-else class="empty-list-prompt">您还没有发布过任何帖子。</p>
+
+            <!-- 空状态反馈 -->
+            <div v-else class="empty-placeholder">
+                <div class="empty-icon">📭</div>
+                <h3>这里空空如也</h3>
+                <p>{{ isMyPosts ? '你还没有发布过任何帖子，快去分享你的见解吧！' : '社区暂时还没有帖子。' }}</p>
+                <button v-if="isMyPosts" class="btn-primary" @click="$root.openCreatePostModal">
+                    ✨ 立即发布首篇帖子
+                </button>
+            </div>
         </div>
     `,
-    data() {
-        return { posts: [], loading: true };
+    data: () => ({
+        posts: [],
+        loading: true
+    }),
+    computed: {
+        // 判断当前是否在“我的创作”页面
+        isMyPosts() {
+            return this.$route.path === '/my-posts';
+        }
     },
     methods: {
-        // 主要区别在这里：调用 /user/posts 接口
-        async fetchMyPosts() {
+        async fetchPosts() {
             this.loading = true;
             try {
-                // axios的默认头已经携带了JWT
-                const response = await axios.get('http://localhost:8080/user/posts');
-                if (response.data.code === 0) {
-                    this.posts = response.data.data;
-                } else {
-                    alert('加载您的帖子失败: ' + response.data.message);
+                // 根据路由选择不同的 API 路径
+                const url = this.isMyPosts
+                    ? 'http://localhost:8080/user/posts'
+                    : 'http://localhost:8080/posts';
+
+                const res = await axios.get(url);
+                if (res.data.code === 0) {
+                    this.posts = res.data.data;
                 }
             } catch (error) {
-                console.error('获取我的帖子出错:', error);
-                alert('网络错误或认证失败，无法加载您的帖子。');
+                console.error('获取帖子失败:', error);
             } finally {
                 this.loading = false;
             }
         },
-        formatTime,
-        summarizeContent(content) {
-            if (!content) return '';
-            return content.length > 150 ? content.substring(0, 150) + '...' : content;
-        }
+        formatTime
     },
-    created() {
-        this.fetchMyPosts();
+    // 关键：监听路由变化。当用户在导航栏点击时，手动触发数据重新加载
+    watch: {
+        '$route': {
+            handler: 'fetchPosts',
+            immediate: true // 初始载入时也执行一次
+        }
     }
 };
 
+// 帖子详情组件 (集成点赞和 AI)
+const PostDetail = {
+    template: `
+        <div class="post-detail" v-if="post">
+            <div class="detail-header">
+                <h1 v-if="!isEditing">{{ post.title }}</h1>
+                <input v-else v-model="editingPost.title" class="edit-title-input" placeholder="请输入标题" />
+                <div class="detail-meta">
+                    作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}
+                </div>
+            </div>
 
-// 定义路由规则
-const routes = [
-    { path: '/', component: PostList },          // 根路径'/' 对应 PostList 组件
-    { path: '/posts/:id', component: PostDetail }, // '/posts/...' 对应 PostDetail 组件, ':id'是动态参数
-    { path: '/my-posts', component: MyPosts }
-];
+            <div v-if="!isEditing" class="ai-summary-box" :class="{ 'loading': aiLoading, 'fallback': aiStatus === 'FALLBACK', 'error': aiStatus === 'ERROR' }">
+                <div class="ai-header">
+                    <span class="ai-badge">AI 助手总结</span>
+                    <button class="btn-ai" @click="getAiSummary" :disabled="aiLoading">
+                        {{ aiLoading ? '生成中...' : (aiSummary ? '重新生成' : '一键总结') }}
+                    </button>
+                </div>
+                <div class="ai-content">
+                    <p v-if="aiSummary" :class="{ 'ai-fallback-text': aiStatus === 'FALLBACK', 'ai-error-text': aiStatus === 'ERROR' }">
+                        {{ aiSummary }}
+                    </p>
+                    <p v-else-if="aiLoading" class="pulse">AI 正在深度阅读中，请稍候...</p>
+                    <p v-else class="placeholder">点击上方按钮，让 AI 为你总结核心观点</p>
+                </div>
+            </div>
 
-// 创建并配置路由实例
-const router = VueRouter.createRouter({
-    history: VueRouter.createWebHashHistory(), // 使用 hash 模式，URL会像这样: localhost:63342/#/posts/1
-    routes,
-});
+            <div v-if="!isEditing" class="post-body">{{ post.content }}</div>
+            <textarea v-else v-model="editingPost.content" class="edit-content-textarea" placeholder="请输入内容"></textarea>
 
-const app = createApp({
-    data() {
-        return {
-            isRegistrationModalVisible: false,
-            isLoginModalVisible: false, // 控制登录模态框的可见性
-            newUser: {
-                username: '',
-                email: '',
-                password: '',
-                confirmPassword: ''
-            },
-            loginUser: {
-                username: '',
-                password: ''
-            },
-            loggedInUser: null,
-            isCreatePostModalVisible: false, // 控制发帖模态框
-            newPost: {                      // 存储新帖子的数据
-                title: '',
-                content: ''
-            },
-            routerViewKey: 0, // 用于刷新router-view的key
-            stompClient: null,                      // WebSocket STOMP 客户端实例
-            notifications: [],                      // 存放通知列表
-            unreadCount: 0,                         // 未读通知数量
-            isNotificationDropdownVisible: false,   // 控制通知下拉框的显示
+            <div class="post-footer">
+                <button class="like-btn" :class="{ 'active': hasLiked }" @click="toggleLike">
+                    <span class="heart">{{ hasLiked ? '❤️' : '🤍' }}</span> {{ likeCount }}
+                </button>
+                <div v-if="isOwner" class="owner-actions">
+                    <button v-if="!isEditing" class="btn-text btn-edit" @click="startEditPost">编辑</button>
+                    <button v-if="!isEditing" class="btn-text" @click="handleDelete">删除</button>
+                    <template v-else>
+                        <button class="btn-text btn-cancel" @click="cancelEditPost">取消</button>
+                        <button class="btn-text btn-confirm" @click="saveEditPost">保存</button>
+                    </template>
+                </div>
+            </div>
+
+            <section v-if="!isEditing" class="comments">
+                <h3>交流评论</h3>
+                <div v-if="$root.loggedInUser" class="comment-input">
+                    <textarea v-model="newComment" placeholder="发表你的看法..."></textarea>
+                    <button class="btn-primary" @click="postComment">发表评论</button>
+                </div>
+                <div v-else style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                    登录后即可参与评论
+                </div>
+                <div class="comment-list">
+                    <div v-for="c in comments" :key="c.id" class="comment-item">
+                        <div class="c-header">
+                            <div class="c-user">{{ c.authorUsername }} <span class="c-time">{{ formatTime(c.createTime) }}</span></div>
+                            <div v-if="isCommentOwner(c)" class="c-actions">
+                                <button v-if="!editingCommentId || editingCommentId !== c.id" class="btn-icon" @click="startEditComment(c)" title="编辑">✏️</button>
+                                <button class="btn-icon btn-delete" @click="deleteComment(c.id)" title="删除">🗑️</button>
+                            </div>
+                        </div>
+                        <div v-if="editingCommentId === c.id" class="c-edit-form">
+                            <textarea v-model="editingContent" class="edit-textarea"></textarea>
+                            <div class="edit-actions">
+                                <button class="btn-small btn-cancel" @click="cancelEdit">取消</button>
+                                <button class="btn-small btn-confirm" @click="saveEdit(c.id)">保存</button>
+                            </div>
+                        </div>
+                        <div v-else class="c-text">{{ c.content }}</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    `,
+    data: () => ({
+        post: null,
+        comments: [],
+        newComment: '',
+        hasLiked: false,
+        likeCount: 0,
+        aiSummary: null,
+        aiLoading: false,
+        aiStatus: null, // SUCCESS / FALLBACK / ERROR
+        aiSummaryHandler: null,
+        editingCommentId: null,
+        editingContent: '',
+        isEditing: false,
+        editingPost: { title: '', content: '' }
+    }),
+    computed: {
+        isOwner() {
+            return this.$root.loggedInUser?.id == this.post?.userId;
         }
     },
     methods: {
         formatTime,
-        // --- 登录模态框控制 ---
-        openLoginModal() {
-            this.loginUser = { username: '', password: '' }; // 清空输入
-            this.isLoginModalVisible = true;
+        isCommentOwner(comment) {
+            return this.$root.loggedInUser?.id == comment.userId;
         },
-        closeLoginModal() {
-            this.isLoginModalVisible = false;
-        },
-        // --- 注册模态框控制 ---
-        openRegistrationModal() {
-            this.newUser = { username: '', email: '', password: '', confirmPassword: '' };
-            this.isRegistrationModalVisible = true;
-        },
-        closeRegistrationModal() {
-            this.isRegistrationModalVisible = false;
-        },
-        // --- 功能逻辑 ---
-        registerUser() {
-            if (!this.newUser.username.trim() || !this.newUser.email.trim() || !this.newUser.password) {
-                alert('请填写所有必填项！');
-                return;
-            }
-            if (this.newUser.password !== this.newUser.confirmPassword) {
-                alert('两次输入的密码不一致！');
-                return;
-            }
-            const userData = {
-                username: this.newUser.username,
-                email: this.newUser.email,
-                password: this.newUser.password
+        startEditPost() {
+            this.isEditing = true;
+            this.editingPost = { 
+                title: this.post.title, 
+                content: this.post.content 
             };
-            axios.post('http://localhost:8080/users/register', userData)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('注册成功！');
-                        this.closeRegistrationModal();
-                        // 注册成功后可以自动弹出登录框，引导用户登录
-                        this.openLoginModal();
-                    } else {
-                        alert('注册失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('注册请求出错:', error);
-                    alert('注册失败，请查看控制台获取详情。');
+        },
+        cancelEditPost() {
+            this.isEditing = false;
+            this.editingPost = { title: '', content: '' };
+        },
+        async saveEditPost() {
+            if (!this.editingPost.title.trim() || !this.editingPost.content.trim()) {
+                alert('标题和内容不能为空');
+                return;
+            }
+            try {
+                await axios.put(`http://localhost:8080/posts/${this.post.id}`, this.editingPost);
+                this.post.title = this.editingPost.title;
+                this.post.content = this.editingPost.content;
+                this.isEditing = false;
+                this.editingPost = { title: '', content: '' };
+            } catch (error) {
+                alert(error.response?.data?.message || '修改失败');
+            }
+        },
+        startEditComment(comment) {
+            this.editingCommentId = comment.id;
+            this.editingContent = comment.content;
+        },
+        cancelEdit() {
+            this.editingCommentId = null;
+            this.editingContent = '';
+        },
+        async saveEdit(commentId) {
+            if (!this.editingContent.trim()) {
+                alert('评论内容不能为空');
+                return;
+            }
+            try {
+                await axios.put(`http://localhost:8080/comments/${commentId}`, { 
+                    content: this.editingContent 
                 });
-        },
-        handleLogin() {
-            if (!this.loginUser.username.trim() || !this.loginUser.password) {
-                alert('用户名和密码不能为空！');
-                return;
+                this.editingCommentId = null;
+                this.editingContent = '';
+                this.fetchData();
+            } catch (error) {
+                alert(error.response?.data?.message || '修改失败');
             }
-            axios.post('http://localhost:8080/users/login', this.loginUser)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('登录成功！');
-                        const token = response.data.data;
-
-                        // 1. 将JWT保存到 localStorage
-                        localStorage.setItem('jwt-token', token);
-
-                        // 2. 解析JWT并更新UI状态
-                        this.loggedInUser = this.parseJwt(token);
-
-                        // 3. (重要)为后续所有axios请求设置默认的认证头
-                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-                        this.connectWebSocket();
-                        this.fetchNotifications();
-
-                        this.closeLoginModal();
-                    } else {
-                        alert('登录失败: ' + response.data.message);
-                    }
-                }).catch(error => alert('登录失败，网络或服务器错误。'));
         },
+        async deleteComment(commentId) {
+            if (!confirm('确定要删除这条评论吗？')) return;
+            try {
+                await axios.delete(`http://localhost:8080/comments/${commentId}`);
+                this.fetchData();
+            } catch (error) {
+                alert(error.response?.data?.message || '删除失败');
+            }
+        },
+        async fetchData() {
+            try {
+                const id = this.$route.params.id;
+                const [pRes, lRes, cRes] = await Promise.all([
+                    axios.get(`http://localhost:8080/posts/${id}`),
+                    axios.get(`http://localhost:8080/posts/${id}/like/status`),
+                    axios.get(`http://localhost:8080/posts/${id}/comments`)
+                ]);
+                this.post = pRes.data.data;
+                this.hasLiked = lRes.data.data.liked;
+                this.likeCount = lRes.data.data.likeCount;
+                this.comments = cRes.data.data;
+            } catch (error) {
+                console.error('获取数据失败:', error);
+            }
+        },
+        async getAiSummary() {
+            if (!this.$root.loggedInUser) return alert('请先登录');
+
+            this.aiLoading = true;
+            this.aiSummary = null;
+            this.aiStatus = null;
+
+            try {
+                const res = await axios.post(`http://localhost:8080/posts/${this.post.id}/ai-summary`);
+                console.log('[AI] 接口返回:', res.data);
+
+                if (res.data.code !== 0) {
+                    alert(res.data.message || 'AI 任务提交失败');
+                    this.aiLoading = false;
+                    this.aiStatus = 'ERROR';
+                    return;
+                }
+
+                const result = res.data.data;
+
+                // 1. 命中缓存：后端直接返回总结字符串
+                if (typeof result === 'string' && result && !result.includes('AI助手已开始阅读')) {
+                    this.aiSummary = result;
+                    this.aiStatus = 'SUCCESS';
+                    this.aiLoading = false;
+                    return;
+                }
+
+                // 2. 已进入异步流程：保持 loading，等待 websocket 推送
+                if (typeof result === 'string' && result.includes('AI助手已开始阅读')) {
+                    return;
+                }
+
+                // 3. 兜底
+                this.aiLoading = false;
+            } catch (e) {
+                alert(e.response?.data?.message || 'AI 任务提交失败');
+                this.aiLoading = false;
+                this.aiStatus = 'ERROR';
+            }
+        },
+        async toggleLike() {
+            if (!this.$root.loggedInUser) return alert('请先登录');
+            const id = this.post.id;
+            try {
+                if (this.hasLiked) {
+                    await axios.delete(`http://localhost:8080/posts/${id}/like`);
+                    this.likeCount--;
+                } else {
+                    await axios.post(`http://localhost:8080/posts/${id}/like`);
+                    this.likeCount++;
+                }
+                this.hasLiked = !this.hasLiked;
+            } catch (error) {
+                console.error('点赞操作失败:', error);
+            }
+        },
+        async postComment() {
+            if (!this.newComment.trim()) return;
+            try {
+                await axios.post(`http://localhost:8080/posts/${this.post.id}/comments`, { content: this.newComment });
+                this.newComment = '';
+                this.fetchData();
+            } catch (error) {
+                console.error('评论失败:', error);
+            }
+        },
+        async handleDelete() {
+            if (!confirm('确定要删除这篇帖子吗？')) return;
+            try {
+                await axios.delete(`http://localhost:8080/posts/${this.post.id}`);
+                this.$router.push('/');
+            } catch (error) {
+                console.error('删除失败:', error);
+            }
+        }
+    },
+    created() {
+        this.fetchData();
+
+        this.aiSummaryHandler = (e) => {
+            if (this.post && e.detail.postId == this.post.id) {
+                this.aiSummary = e.detail.content;
+                this.aiStatus = e.detail.status || 'SUCCESS';
+                this.aiLoading = false;
+            }
+        };
+
+        window.addEventListener('ai-summary-received', this.aiSummaryHandler);
+    },
+    beforeUnmount() {
+        if (this.aiSummaryHandler) {
+            window.removeEventListener('ai-summary-received', this.aiSummaryHandler);
+        }
+    }
+};
+const routes = [
+    { path: '/', component: PostList },
+    { path: '/posts/:id', component: PostDetail },
+    { path: '/my-posts', component: PostList }
+];
+
+const router = VueRouter.createRouter({ history: VueRouter.createWebHashHistory(), routes });
+
+const app = createApp({
+    data: () => ({
+        loggedInUser: null,
+        unreadCount: 0,
+        notifications: [],
+        isNotificationDropdownVisible: false,
+        isLoginModalVisible: false,
+        isRegistrationModalVisible: false,
+        isCreatePostModalVisible: false,
+        loginUser: { username: '', password: '' },
+        newUser: { username: '', email: '', password: '', confirmPassword: '' },
+        newPost: { title: '', content: '' },
+        stompClient: null,
+        routerViewKey: 0
+    }),
+    methods: {
+        formatTime,
         connectWebSocket() {
-            if (!this.loggedInUser) return; // 未登录则不连接
-            if (this.stompClient && this.stompClient.connected) {
-                console.log("WebSocket 已连接。");
-                return;
-            }
-
             const socket = new SockJS('http://localhost:8080/ws');
             this.stompClient = Stomp.over(socket);
+            const headers = { 'Authorization': `Bearer ${localStorage.getItem('jwt-token')}` };
 
-            // 配置心跳，与后端保持一致或按需调整
-            // outgoing: 客户端发送心跳的间隔（毫秒），0表示不发送
-            // incoming: 客户端期望接收服务端心跳的间隔（毫秒），0表示不接收
-            this.stompClient.heartbeat.outgoing = 8000;
-            this.stompClient.heartbeat.incoming = 10000;
+            this.stompClient.connect(headers, () => {
+                // 拿到当前登录用户的 ID
+                const userId = this.loggedInUser.id;
 
-            // 在 STOMP 连接头中传递 JWT Token 进行认证
-            const headers = {
-                'Authorization': `Bearer ${localStorage.getItem('jwt-token')}`
-            };
-
-            this.stompClient.connect(headers, (frame) => {
-                console.log('WebSocket 连接成功: ' + frame);
-
-                // 订阅个人通知队列
-                this.stompClient.subscribe('/user/queue/notifications', (message) => {
-                    const newNotification = JSON.parse(message.body);
-                    console.log("收到新通知:", newNotification);
-
-                    // 在列表开头添加新通知，并更新未读数量
-                    this.notifications.unshift(newNotification);
+                // 1. 订阅该用户的专属通知频道
+                this.stompClient.subscribe('/topic/user/' + userId + '/notifications', (msg) => {
                     this.unreadCount++;
+                    this.notifications.unshift(JSON.parse(msg.body));
+                });
 
-                    // 简单的桌面通知提示
-                    if (Notification && Notification.permission === "granted") {
-                        new Notification("LLM-Hub 新通知", {
-                            body: newNotification.content,
-                        });
+                // 2. 订阅该用户的专属 AI 总结频道
+                this.stompClient.subscribe('/topic/user/' + userId + '/ai', (msg) => {
+                    const data = JSON.parse(msg.body);
+                    console.log('[AI][WebSocket] 收到消息:', data); // 这次绝对能打印出来了！
+
+                    if (data.status === 'SUCCESS' || data.status === 'FALLBACK') {
+                        window.dispatchEvent(new CustomEvent('ai-summary-received', { detail: data }));
+                        return;
+                    }
+
+                    if (data.status === 'ERROR') {
+                        window.dispatchEvent(new CustomEvent('ai-summary-received', {
+                            detail: {
+                                ...data,
+                                content: data.content || 'AI生成失败，请稍后重试。'
+                            }
+                        }));
+                        return;
                     }
                 });
             }, (error) => {
                 console.error('WebSocket 连接失败:', error);
-                // 可以加入重连逻辑
             });
         },
-        disconnectWebSocket() {
-            if (this.stompClient) {
-                this.stompClient.disconnect(() => {
-                    console.log("WebSocket 已断开。");
-                    this.stompClient = null;
-                });
+        async handleLogin() {
+            if (!this.loginUser.username || !this.loginUser.password) {
+                return alert('请填写用户名和密码');
             }
-        },
-        fetchNotifications() {
-            axios.get('http://localhost:8080/api/notifications/unread-count')
-                .then(response => {
-                    if(response.data.code === 0) {
-                        this.unreadCount = response.data.data;
-                    }
-                });
-        },
-        toggleNotificationDropdown() {
-            this.isNotificationDropdownVisible = !this.isNotificationDropdownVisible;
-            // 打开下拉框时，获取完整的通知列表
-            if (this.isNotificationDropdownVisible && this.notifications.length === 0) {
-                axios.get('http://localhost:8080/api/notifications')
-                    .then(response => {
-                        if (response.data.code === 0) {
-                            this.notifications = response.data.data;
-                        }
-                    });
-            }
-        },
-        handleNotificationClick(notification) {
-            // 如果通知未读，则调用API标记为已读
-            if (!notification.read) {
-                axios.post(`http://localhost:8080/api/notifications/${notification.id}/read`)
-                    .then(response => {
-                        if (response.data.code === 0) {
-                            notification.read = true; // 前端同步状态
-                            this.unreadCount--;
-                        }
-                    });
-            }
-            this.isNotificationDropdownVisible = false; // 点击后关闭下拉框
-            // Vue Router 会处理后续的跳转
-        },
-        markAllAsRead() {
-            // 简单实现：遍历所有未读通知并逐个标记
-            this.notifications.forEach(n => {
-                if (!n.read) {
-                    this.handleNotificationClick(n);
+            try {
+                const res = await axios.post('http://localhost:8080/users/login', this.loginUser);
+                if (res.data.code === 0) {
+                    const token = res.data.data;
+                    localStorage.setItem('jwt-token', token);
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    this.loggedInUser = this.parseJwt(token);
+                    this.connectWebSocket();
+                    this.isLoginModalVisible = false;
+                    this.loginUser = { username: '', password: '' };
+                } else {
+                    alert(res.data.message);
                 }
-            });
-        },
-        logout() {
-            // 1. 从 localStorage 中移除JWT
-            localStorage.removeItem('jwt-token');
-
-            // 2. 将UI状态重置为未登录
-            this.loggedInUser = null;
-
-            // 3. 移除axios的默认认证头
-            delete axios.defaults.headers.common['Authorization'];
-
-            // 4. 如果当前在需要认证的页面，则导航到主页
-            if (this.$route.path === '/my-posts' || this.$route.path.startsWith('/posts/')) {
-                this.$router.push('/');
+            } catch (error) {
+                alert(error.response?.data?.message || '登录失败');
             }
-
-            alert('您已成功退出。');
         },
         parseJwt(token) {
             try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                // 后端生成JWT时，把用户信息放在了 "claims" 字段里
-                return JSON.parse(jsonPayload).claims;
+                return JSON.parse(atob(token.split('.')[1])).claims;
             } catch (e) {
-                console.error("解析Token失败:", e);
+                console.error('Token 解析失败:', e);
                 return null;
             }
         },
-        switchToRegisterModal() {
-            this.closeLoginModal();
-            this.openRegistrationModal();
-        },
-
-        openCreatePostModal() {
-            // 每次打开都清空，保证是新帖子
-            this.newPost = { title: '', content: '' };
-            this.isCreatePostModalVisible = true;
-        },
-        closeCreatePostModal() {
-            this.isCreatePostModalVisible = false;
-        },
-        handleCreatePost() {
-            // 简单的前端校验
-            if (!this.newPost.title.trim() || !this.newPost.content.trim()) {
-                alert('标题和内容都不能为空！');
-                return;
+        logout() {
+            if (this.stompClient) {
+                this.stompClient.disconnect();
             }
-            axios.post('http://localhost:8080/posts', this.newPost)
-                .then(response => {
-                    if (response.data.code === 0) {
-                        alert('发布成功！');
-                        this.closeCreatePostModal();
-                        // 发布成功后刷新列表
-                        // 通过改变 router-view 的 key 来强制重新渲染当前组件，
-                        // 这会触发组件的 created 钩子，从而重新执行 fetchPosts()。
-                        // 这是Vue中一种推荐的、强制刷新组件的技巧。
-                        this.routerViewKey++;
-
-                    } else {
-                        alert('发布失败: ' + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('发布帖子出错:', error);
-                    // 如果是401或403错误，说明认证失败
-                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                        alert('认证失败，请重新登录后再试。');
-                        this.logout(); // 可以选择强制用户退出
-                    } else {
-                        alert('发布失败，请检查网络或联系管理员。');
-                    }
+            localStorage.removeItem('jwt-token');
+            delete axios.defaults.headers.common['Authorization'];
+            location.reload();
+        },
+        openLoginModal() { this.isLoginModalVisible = true; },
+        closeLoginModal() { this.isLoginModalVisible = false; },
+        openRegistrationModal() { 
+            this.isRegistrationModalVisible = true;
+            this.isLoginModalVisible = false;
+        },
+        closeRegistrationModal() { this.isRegistrationModalVisible = false; },
+        switchToRegisterModal() {
+            this.isLoginModalVisible = false;
+            this.isRegistrationModalVisible = true;
+        },
+        openCreatePostModal() { 
+            if (!this.loggedInUser) return alert('请先登录');
+            this.isCreatePostModalVisible = true; 
+        },
+        closeCreatePostModal() { 
+            this.isCreatePostModalVisible = false;
+            this.newPost = { title: '', content: '' };
+        },
+        async handleCreatePost() {
+            if (!this.newPost.title.trim() || !this.newPost.content.trim()) {
+                return alert('请填写标题和内容');
+            }
+            try {
+                await axios.post('http://localhost:8080/posts', this.newPost);
+                this.closeCreatePostModal();
+                this.$router.push('/');
+                setTimeout(() => location.reload(), 100);
+            } catch (error) {
+                alert(error.response?.data?.message || '发布失败');
+            }
+        },
+        async registerUser() {
+            if (!this.newUser.username || !this.newUser.email || !this.newUser.password) {
+                return alert('请填写所有字段');
+            }
+            if (this.newUser.password !== this.newUser.confirmPassword) {
+                return alert('两次密码不一致');
+            }
+            try {
+                await axios.post('http://localhost:8080/users/register', this.newUser);
+                alert('注册成功！请登录');
+                this.closeRegistrationModal();
+                this.openLoginModal();
+                this.newUser = { username: '', email: '', password: '', confirmPassword: '' };
+            } catch (error) {
+                alert(error.response?.data?.message || '注册失败');
+            }
+        },
+        toggleNotificationDropdown() {
+            this.isNotificationDropdownVisible = !this.isNotificationDropdownVisible;
+        },
+        handleNotificationClick(notification) {
+            if (!notification.read) {
+                notification.read = true;
+                this.unreadCount = Math.max(0, this.unreadCount - 1);
+                axios.post(`http://localhost:8080/api/notifications/${notification.id}/read`).catch(err => {
+                    console.error('标记已读失败:', err);
                 });
-        }
+            }
+            this.isNotificationDropdownVisible = false;
+        },
+        async fetchInitialNotifications() {
+            try {
+                // 并发请求：获取未读数量 和 获取通知列表
+                const [countRes, listRes] = await Promise.all([
+                    axios.get('http://localhost:8080/api/notifications/unread-count'),
+                    axios.get('http://localhost:8080/api/notifications')
+                ]);
+                if (countRes.data.code === 0) {
+                    this.unreadCount = countRes.data.data;
+                }
+                if (listRes.data.code === 0) {
+                    this.notifications = listRes.data.data;
+                }
+            } catch (error) {
+                console.error('获取初始通知失败:', error);
+            }
+        },
     },
     created() {
-        // // 1. 页面加载时，先获取帖子
-        // this.fetchPosts();
-
-        // 检查本地是否已存储JWT
         const token = localStorage.getItem('jwt-token');
         if (token) {
-            // 如果有，解析它并更新UI
-            const userData = this.parseJwt(token);
-            if (userData) {
-                this.loggedInUser = userData;
-                // 同时，为axios设置认证头，以便后续请求能够携带JWT
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                this.connectWebSocket();
-                this.fetchNotifications();
-
-                // 请求浏览器桌面通知权限
-                if (Notification && Notification.permission !== "granted") {
-                    Notification.requestPermission();
-                }
-            } else {
-                // 如果token解析失败（可能是无效的或过期的），则清理掉
-                localStorage.removeItem('jwt-token');
-            }
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            this.loggedInUser = this.parseJwt(token);
+            this.connectWebSocket();
+            this.fetchInitialNotifications();
         }
+        
+        // 点击外部关闭通知下拉菜单
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.notification-wrapper')) {
+                this.isNotificationDropdownVisible = false;
+            }
+        });
     }
 });
-app.use(router);
 
+app.use(router);
 app.mount('#app');

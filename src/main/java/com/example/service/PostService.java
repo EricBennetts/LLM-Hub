@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.pojo.AiSummaryResult;
 import com.example.pojo.Post;
 import java.util.List;
 
@@ -16,5 +17,5 @@ public interface PostService {
     
     boolean deletePost(Long postId);
 
-    String generateAiSummary(Long postId);
+    AiSummaryResult generateAiSummary(Long postId);
 }

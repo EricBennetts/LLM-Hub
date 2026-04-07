@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>LLM-Hub社区论坛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM-Hub | 开发者社区讨论平台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
@@ -12,149 +16,105 @@
 </head>
 <body>
 <div id="app">
-    <!-- 页眉 -->
+    <!-- 顶部导航栏 -->
     <header class="app-header">
-        <div class="header-title">
-            <router-link to="/" class="home-link">LLM Hub</router-link>
-        </div>
-        <nav class="header-nav">
-            <!-- 情况A: 如果用户未登录 (loggedInUser 为 null) -->
-            <div v-if="!loggedInUser">
-                <button class="nav-btn" @click="openLoginModal">登录</button>
-                <button class="nav-btn" @click="openRegistrationModal">注册</button>
-            </div>
-            <!-- 情况B: 如果用户已登录 -->
-            <div v-else class="user-info">
-                <span>欢迎, {{ loggedInUser.username }}</span>
-                <div class="notification-area">
-                    <button class="notification-bell" @click="toggleNotificationDropdown">
-                        <span>🔔</span> <!-- 使用 emoji 作为图标 -->
-                        <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount }}</span>
-                    </button>
-                    <!-- 通知下拉框 -->
-                    <div v-if="isNotificationDropdownVisible" class="notification-dropdown">
-                        <div class="dropdown-header">
-                            <h3>消息通知</h3>
-                            <button class="btn-link" @click="markAllAsRead">全部已读</button>
-                        </div>
-                        <div v-if="notifications.length === 0" class="no-notifications">
-                            暂无通知
-                        </div>
-                        <ul v-else class="notification-list">
-                            <li v-for="notification in notifications" :key="notification.id"
-                                :class="{ 'is-read': notification.read }">
-                                <router-link :to="'/posts/' + notification.postId" @click="handleNotificationClick(notification)" class="notification-link">
-                                    <p class="notification-content">{{ notification.content }}</p>
-                                    <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
-                                </router-link>
-                            </li>
-                        </ul>
-                    </div>
+        <div class="header-container">
+            <router-link to="/" class="logo">
+                <span class="logo-icon">🚀</span> LLM Hub
+            </router-link>
+
+            <nav class="header-nav">
+                <div v-if="!loggedInUser" class="auth-buttons">
+                    <button class="btn-text" @click="openLoginModal">登录</button>
+                    <button class="btn-primary" @click="openRegistrationModal">加入我们</button>
                 </div>
-                <router-link to="/my-posts" class="nav-link">我的帖子</router-link>
-                <button class="nav-btn-create" @click="openCreatePostModal">发布新帖</button>
-                <button class="nav-btn-logout" @click="logout">退出</button>
-            </div>
-        </nav>
+                <div v-else class="user-panel">
+                    <!-- 欢迎信息 -->
+                    <div class="welcome-message">
+                        <span class="welcome-text">👋 欢迎，{{ loggedInUser.username }}</span>
+                    </div>
+
+                    <!-- 通知铃铛 -->
+                    <div class="notification-wrapper">
+                        <button class="icon-btn" @click="toggleNotificationDropdown" title="消息通知">
+                            🔔 <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+                        </button>
+                        <div v-if="isNotificationDropdownVisible" class="dropdown-menu notification-dropdown">
+                            <div class="dropdown-header">
+                                <span>最新消息</span>
+                            </div>
+                            <div v-if="notifications.length === 0" class="empty-state">
+                                <div style="font-size: 2rem; margin-bottom: 8px;">📭</div>
+                                暂无新消息
+                            </div>
+                            <div class="notification-list">
+                                <router-link v-for="n in notifications" :key="n.id"
+                                             :to="'/posts/' + n.postId"
+                                             @click="handleNotificationClick(n)"
+                                             class="notification-item" :class="{ 'unread': !n.read }">
+                                    <div class="n-content">{{ n.content }}</div>
+                                    <div class="n-time">{{ formatTime(n.createTime) }}</div>
+                                </router-link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <router-link to="/my-posts" class="nav-link">我的创作</router-link>
+                    <button class="btn-success" @click="openCreatePostModal">✨ 发布帖子</button>
+                    <button class="btn-outline-danger" @click="logout">登出</button>
+                </div>
+            </nav>
+        </div>
     </header>
-    <div v-if="!loggedInUser" class="login-prompt-banner">
-        您当前未登录，<a href="#" @click.prevent="openLoginModal">登录</a>后即可发表帖子
-    </div>
 
-    <!-- 路由视图 -->
-    <router-view :key="routerViewKey"></router-view>
-    <!--    <div class="posts-container">-->
-    <!--        <h1>社区帖子</h1>-->
+    <main class="main-content">
+        <div v-if="!loggedInUser" class="welcome-banner">
+            👋 欢迎来到 LLM-Hub！登录后即可参与深度讨论并使用 AI 总结功能。
+        </div>
 
-    <!--        <div class="post-item" v-for="post in posts" :key="post.id">-->
-    <!--            <h3 class="post-title">{{ post.title }}</h3>-->
-    <!--            <p class="post-meta">作者: {{ post.authorUsername }} | 发布于: {{ formatTime(post.createTime) }}</p>-->
-    <!--            <p class="post-content">{{ post.content }}</p>-->
-    <!--        </div>-->
-    <!--        <p v-if="posts.length === 0">暂无帖子，快来发布第一篇吧！</p>-->
-    <!--    </div>-->
+        <router-view :key="routerViewKey"></router-view>
+    </main>
 
-    <!-- 2. 将原来的登录框改造成登录模态框 -->
-    <div class="modal-overlay" v-if="isLoginModalVisible">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>用户登录</h2>
-                <button class="close-btn" @click="closeLoginModal">&times;</button>
+    <!-- 登录弹窗 -->
+    <div class="modal-overlay" v-if="isLoginModalVisible" @click.self="closeLoginModal">
+        <div class="modal-card">
+            <h2>欢迎回来</h2>
+            <div class="form-group">
+                <input type="text" v-model="loginUser.username" placeholder="用户名" @keyup.enter="handleLogin">
             </div>
             <div class="form-group">
-                <label for="login-username-input">用户名</label>
-                <input type="text" id="login-username-input" v-model="loginUser.username" placeholder="请输入用户名">
+                <input type="password" v-model="loginUser.password" placeholder="密码" @keyup.enter="handleLogin">
             </div>
-            <div class="form-group">
-                <label for="login-password-input">密码</label>
-                <input type="password" id="login-password-input" v-model="loginUser.password" placeholder="请输入密码">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" @click="closeLoginModal">取消</button>
-                <button class="btn-primary" @click="handleLogin">登录</button>
-            </div>
-            <div class="registration-prompt">
-                还没有账号？ <button @click="switchToRegisterModal">立即注册</button>
-            </div>
+            <button class="btn-primary btn-block" @click="handleLogin">立即登录</button>
+            <p class="switch-prompt">还没有账号？<a @click="switchToRegisterModal">立即注册</a></p>
         </div>
     </div>
 
-    <!-- 注册模态框保持不变 -->
-    <div class="modal-overlay" v-if="isRegistrationModalVisible">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>新用户注册</h2>
-                <button class="close-btn" @click="closeRegistrationModal">&times;</button>
-            </div>
-            <!-- 表单区域 -->
-            <div class="form-group">
-                <label for="username-input"><span class="required">*</span> 用户名</label>
-                <input type="text" id="username-input" v-model="newUser.username" placeholder="请输入用户名">
-            </div>
-            <div class="form-group">
-                <label for="email-input"><span class="required">*</span> 电子邮箱</label>
-                <input type="email" id="email-input" v-model="newUser.email" placeholder="请输入邮箱">
-            </div>
-            <div class="form-group">
-                <label for="password-input"><span class="required">*</span> 密码</label>
-                <input type="password" id="password-input" v-model="newUser.password" placeholder="请输入密码">
-            </div>
-            <div class="form-group">
-                <label for="confirm-password-input"><span class="required">*</span> 确认密码</label>
-                <input type="password" id="confirm-password-input" v-model="newUser.confirmPassword" placeholder="请再次输入密码">
-            </div>
-            <!-- 动作按钮区域 -->
-            <div class="modal-actions">
-                <button class="btn-secondary" @click="closeRegistrationModal">取消</button>
-                <button class="btn-primary" @click="registerUser">确定</button>
-            </div>
+    <!-- 注册弹窗 -->
+    <div class="modal-overlay" v-if="isRegistrationModalVisible" @click.self="closeRegistrationModal">
+        <div class="modal-card">
+            <h2>创建新账号</h2>
+            <div class="form-group"><input type="text" v-model="newUser.username" placeholder="用户名"></div>
+            <div class="form-group"><input type="email" v-model="newUser.email" placeholder="邮箱地址"></div>
+            <div class="form-group"><input type="password" v-model="newUser.password" placeholder="设置密码"></div>
+            <div class="form-group"><input type="password" v-model="newUser.confirmPassword" placeholder="确认密码"></div>
+            <button class="btn-primary btn-block" @click="registerUser">注册</button>
         </div>
     </div>
 
-    <!-- 发布新帖模态框 -->
-    <div class="modal-overlay" v-if="isCreatePostModalVisible">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>发布新帖子</h2>
-                <button class="close-btn" @click="closeCreatePostModal">&times;</button>
-            </div>
-            <div class="form-group-column">
-                <label for="post-title-input">标题</label>
-                <input type="text" id="post-title-input" v-model="newPost.title" placeholder="请输入帖子标题">
-            </div>
-            <div class="form-group-column">
-                <label for="post-content-input">内容</label>
-                <textarea id="post-content-input" v-model="newPost.content" placeholder="请输入帖子内容..." rows="8"></textarea>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" @click="closeCreatePostModal">取消</button>
-                <button class="btn-primary" @click="handleCreatePost">发布</button>
+    <!-- 发帖弹窗 -->
+    <div class="modal-overlay" v-if="isCreatePostModalVisible" @click.self="closeCreatePostModal">
+        <div class="modal-card wide">
+            <h2>发布精彩内容</h2>
+            <div class="form-group"><input type="text" v-model="newPost.title" placeholder="起一个吸引人的标题"></div>
+            <div class="form-group"><textarea v-model="newPost.content" placeholder="分享你的见解..." rows="10"></textarea></div>
+            <div class="modal-footer">
+                <button class="btn-text" @click="closeCreatePostModal">取消</button>
+                <button class="btn-primary" @click="handleCreatePost">发布帖子</button>
             </div>
         </div>
     </div>
-
 </div>
-
 
 <script src="script.js"></script>
 </body>

@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -74,14 +75,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 允许来自你的前端的跨域请求 (http://localhost:63342)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:63342"));
+//        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8080", "http://localhost:63343"));
         // 允许所有请求方法 (GET, POST, PUT, DELETE, etc.)
         configuration.setAllowedMethods(Arrays.asList("*"));
         // 允许所有请求头
         configuration.setAllowedHeaders(Arrays.asList("*"));
         // 允许浏览器发送凭证 (如 cookies)
         configuration.setAllowCredentials(true);
-
+        configuration.setAllowedOriginPatterns(List.of("*"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // 对所有 URL 应用这个配置
         source.registerCorsConfiguration("/**", configuration);

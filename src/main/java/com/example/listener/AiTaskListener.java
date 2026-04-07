@@ -1,6 +1,7 @@
 package com.example.listener;
 
 import com.example.config.RabbitMQConfig;
+import com.example.pojo.AiSummaryResult;
 import com.example.pojo.AiSummaryTask;
 import com.example.service.PostService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -34,22 +35,28 @@ public class AiTaskListener {
         responsePayload.put("type", "AI_SUMMARY");
         try {
             String cacheKey = "post:ai_summary:" + postId;
-            String summary = redisTemplate.opsForValue().get(cacheKey);
-            if (!StringUtils.hasText(summary)) {
-                // 真没有，才去调AI
-                summary = postService.generateAiSummary(postId);
-                // 存入缓存，保存10小时
-                redisTemplate.opsForValue().set(cacheKey, summary, 10, TimeUnit.HOURS);
+            String cachedSummary = redisTemplate.opsForValue().get(cacheKey);
+            if (StringUtils.hasText(cachedSummary)) {
+                responsePayload.put("status", "SUCCESS");
+                responsePayload.put("content", cachedSummary);
+            } else {
+                AiSummaryResult result = postService.generateAiSummary(postId);
+
+                responsePayload.put("status", result.getStatus());
+                responsePayload.put("content", result.getContent());
+
+                // 只有真正成功的总结才缓存 10 小时
+                if (result.isSuccess() && StringUtils.hasText(result.getContent())) {
+                    redisTemplate.opsForValue().set(cacheKey, result.getContent(), 10, TimeUnit.HOURS);
+                }
             }
-            responsePayload.put("status", "SUCCESS");
-            responsePayload.put("content", summary);
         } catch (Exception e) {
             System.out.println("AI生成失败: " + e.getMessage());
             responsePayload.put("status", "ERROR");
             responsePayload.put("content", "AI生成失败，请稍后重试。");
         }
 
-        messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/ai", responsePayload);
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/ai", responsePayload);
         System.out.println("AI总结已推送到用户 " + userId + " 的 WebSocket");
     }
 }

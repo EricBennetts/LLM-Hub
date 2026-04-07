@@ -96,26 +96,37 @@ public class PostController {
     }
 
     @PostMapping("/{id}/ai-summary")
-    @AntiDuplicate(time = 3)
+    @AntiDuplicate(time = 1)
     public Result<String> getAiSummary(@PathVariable Long id) {
-        // 1. 检查缓存
+        System.out.println("[AI] 进入 ai-summary 接口, postId=" + id);
+
         String cacheKey = "post:ai_summary:" + id;
         String cachedSummary = redisTemplate.opsForValue().get(cacheKey);
         if (StringUtils.hasText(cachedSummary)) {
-            // 缓存命中，不需要走MQ，直接同步返回
+            System.out.println("[AI] 命中缓存, postId=" + id);
             return Result.success(cachedSummary);
         }
-        // 2. 缓存未命中
-        int currentQueueSize = rabbitTemplate.execute(channel -> channel.queueDeclarePassive(RabbitMQConfig.AI_SUMMARY_QUEUE).getMessageCount());
+
+        int currentQueueSize = rabbitTemplate.execute(channel ->
+                channel.queueDeclarePassive(RabbitMQConfig.AI_SUMMARY_QUEUE).getMessageCount());
+
+        System.out.println("[AI] 当前队列长度=" + currentQueueSize);
+
         if (currentQueueSize > 50) {
             return Result.error("当前排队人数较多，请稍后再试");
         }
+
         Long currentUserId = UserContext.getUserId();
+        System.out.println("[AI] 当前用户ID=" + currentUserId);
+
         try {
             AiSummaryTask task = new AiSummaryTask(id, currentUserId);
+            System.out.println("[AI] 准备发送MQ, task=" + task);
             rabbitTemplate.convertAndSend(RabbitMQConfig.AI_SUMMARY_QUEUE, task);
+            System.out.println("[AI] MQ发送调用已完成");
             return Result.success("AI助手已开始阅读并总结，请留意页面通知...");
         } catch (Exception e) {
+            e.printStackTrace();
             return Result.error("提交AI任务失败：" + e.getMessage());
         }
     }

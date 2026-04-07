@@ -1,6 +1,7 @@
 package com.example.service.impl;
 
 import com.example.mapper.PostMapper;
+import com.example.pojo.AiSummaryResult;
 import com.example.pojo.Post;
 import com.example.service.PostService;
 import com.example.utils.GenerateTextFromTextInput;
@@ -101,7 +102,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @CircuitBreaker(name = "googleAi", fallbackMethod = "aiSummaryFallback")
-    public String generateAiSummary(Long postId) {
+    public AiSummaryResult generateAiSummary(Long postId) {
         // 1. 获取帖子内容
         Post post = postMapper.findById(postId);
         if (post == null) {
@@ -110,7 +111,7 @@ public class PostServiceImpl implements PostService {
 
         String content = post.getContent();
         if (content == null || content.trim().length() < 10) {
-            return "内容太短，无需总结。";
+            return new AiSummaryResult("SUCCESS", "内容太短，无需总结。");
         }
 
         // 2. 构造 Prompt (提示词)
@@ -122,15 +123,16 @@ public class PostServiceImpl implements PostService {
         // 3. 调用 AI 工具类
         try {
             // 使用你工具类中的实例方法
-            return aiGenerator.generateText(prompt);
+            String result = aiGenerator.generateText(prompt);
+            return new AiSummaryResult("SUCCESS", result);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("AI 服务暂时不可用，请稍后再试");
         }
     }
 
-    public String aiSummaryFallback(Long postId, Throwable t) {
+    public AiSummaryResult aiSummaryFallback(Long postId, Throwable t) {
         System.err.println("触发AI熔断或降级，原因: " + t.getMessage());
-        return "【系统提示】AI助手当前被限流，请稍后再试...";
+        return new AiSummaryResult("FALLBACK", "【系统提示】AI助手当前被限流，请稍后再试...");
     }
 }
