@@ -33,5 +33,7 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+src/main/resources/copy2clipboard.py
+
 ### VS Code ###
 .vscode/

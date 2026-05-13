@@ -1,6 +1,19 @@
 const { createApp } = Vue;
 
-const API_BASE_URL = window.__API_BASE_URL__ || window.location.origin;
+const resolveApiBaseUrl = () => {
+    if (window.__API_BASE_URL__) {
+        return window.__API_BASE_URL__;
+    }
+
+    const { protocol, hostname, origin, port } = window.location;
+    const isLocalStaticPage = protocol === 'file:' || (
+        ['localhost', '127.0.0.1', '::1'].includes(hostname) && port !== '8080'
+    );
+
+    return isLocalStaticPage ? 'http://localhost:8080' : origin;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 axios.defaults.baseURL = API_BASE_URL;
 
 const formatTime = (time) => time ? new Date(time).toLocaleString() : '';

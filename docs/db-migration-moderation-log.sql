@@ -1,0 +1,20 @@
+CREATE TABLE moderation_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NULL,
+    decision VARCHAR(32) NOT NULL COMMENT 'APPROVED/REJECTED/NEEDS_HUMAN_REVIEW/STALE/ERROR',
+    post_status VARCHAR(32) NULL COMMENT 'Resulting post.status when applicable',
+    reason TEXT NULL,
+    model VARCHAR(128) NULL,
+    latency_ms BIGINT NULL,
+    tool_calls_json TEXT NULL,
+    raw_response MEDIUMTEXT NULL,
+    error_type VARCHAR(128) NULL,
+    error_message TEXT NULL,
+    title_snapshot VARCHAR(255) NULL,
+    content_preview VARCHAR(512) NULL,
+    content_length INT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_moderation_log_post_time (post_id, create_time),
+    INDEX idx_moderation_log_decision_time (decision, create_time)
+) COMMENT='AI content moderation audit log';
