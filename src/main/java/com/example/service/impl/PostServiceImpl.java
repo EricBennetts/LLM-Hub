@@ -3,6 +3,7 @@ package com.example.service.impl;
 import com.example.mapper.PostMapper;
 import com.example.pojo.AiSummaryResult;
 import com.example.pojo.Post;
+import com.example.pojo.PostStatus;
 import com.example.service.PostService;
 import com.example.utils.GenerateTextFromTextInput;
 import com.example.utils.UserContext;
@@ -12,12 +13,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class PostServiceImpl implements PostService {
@@ -40,18 +38,25 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @CacheEvict(value = "posts", allEntries = true)
-    public void createPost(Post post) {
-        // 从Spring Security 的上下文中获取当前登录用户
-        Long userId = UserContext.getUserId();
-
-        post.setUserId(userId);
+    public Post submitPostForReview(Post post) {
+        if (post.getUserId() == null) {
+            Long userId = UserContext.getUserId();
+            post.setUserId(userId);
+        }
+        post.setStatus(PostStatus.PENDING_REVIEW.name());
         postMapper.insertPost(post);
+        return post;
     }
 
     @Override
     @Cacheable(value = "post_detail", key = "#id")
     public Post getPostById(Long id) {
         System.out.println("--- 正在从数据库查询帖子详情 ID: " + id + " ---");
+        return postMapper.findPublishedById(id);
+    }
+
+    @Override
+    public Post getPostForModeration(Long id) {
         return postMapper.findById(id);
     }
 
@@ -79,7 +84,8 @@ public class PostServiceImpl implements PostService {
             return false; // 帖子不存在或不属于当前用户
         }
 
-        // 更新帖子
+        // 内容发生变化后重新进入自动审核，避免编辑绕过内容治理。
+        post.setStatus(PostStatus.PENDING_REVIEW.name());
         int rowsAffected = postMapper.updatePost(post);
         String cacheKey = "post:ai_summary:" + post.getId();
         redisTemplate.delete(cacheKey);
@@ -101,10 +107,28 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "posts", allEntries = true),
+            @CacheEvict(value = "post_detail", key = "#postId")
+    })
+    public boolean updatePostStatus(Long postId, PostStatus status) {
+        return postMapper.updateStatus(postId, status.name()) > 0;
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(value = "posts", allEntries = true),
+            @CacheEvict(value = "post_detail", key = "#postId")
+    })
+    public boolean completeModeration(Long postId, PostStatus status, String title, String content) {
+        return postMapper.updateStatusIfPendingAndContentMatches(postId, status.name(), title, content) > 0;
+    }
+
+    @Override
     @CircuitBreaker(name = "googleAi", fallbackMethod = "aiSummaryFallback")
     public AiSummaryResult generateAiSummary(Long postId) {
         // 1. 获取帖子内容
-        Post post = postMapper.findById(postId);
+        Post post = postMapper.findPublishedById(postId);
         if (post == null) {
             throw new RuntimeException("帖子不存在");
         }

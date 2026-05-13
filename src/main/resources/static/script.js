@@ -1,5 +1,8 @@
 const { createApp } = Vue;
 
+const API_BASE_URL = window.__API_BASE_URL__ || window.location.origin;
+axios.defaults.baseURL = API_BASE_URL;
+
 const formatTime = (time) => time ? new Date(time).toLocaleString() : '';
 
 // 帖子列表组件
@@ -14,15 +17,26 @@ const PostList = {
 
             <!-- 数据列表 -->
             <div v-else-if="posts.length > 0" class="post-grid">
-                <router-link v-for="post in posts" :key="post.id" :to="'/posts/' + post.id" class="post-card">
-                    <h2 class="post-title">{{ post.title }}</h2>
+                <component
+                    :is="canOpenPost(post) ? 'router-link' : 'div'"
+                    v-for="post in posts"
+                    :key="post.id"
+                    :to="canOpenPost(post) ? '/posts/' + post.id : undefined"
+                    class="post-card"
+                    :class="{ 'post-card-disabled': !canOpenPost(post) }">
+                    <div class="post-card-head">
+                        <h2 class="post-title">{{ post.title }}</h2>
+                        <span v-if="isMyPosts" class="status-badge" :class="statusClass(post.status)">
+                            {{ statusLabel(post.status) }}
+                        </span>
+                    </div>
                     <div class="post-info">
                         <span>👤 {{ post.authorUsername }}</span>
                         <span>🕒 {{ formatTime(post.createTime) }}</span>
                         <span>👍 {{ post.likeCount || 0 }}</span>
                     </div>
                     <p class="post-excerpt">{{ post.content.substring(0, 100) }}...</p>
-                </router-link>
+                </component>
             </div>
 
             <!-- 空状态反馈 -->
@@ -38,7 +52,8 @@ const PostList = {
     `,
     data: () => ({
         posts: [],
-        loading: true
+        loading: true,
+        moderationHandler: null
     }),
     computed: {
         // 判断当前是否在“我的创作”页面
@@ -52,8 +67,8 @@ const PostList = {
             try {
                 // 根据路由选择不同的 API 路径
                 const url = this.isMyPosts
-                    ? 'http://localhost:8080/user/posts'
-                    : 'http://localhost:8080/posts';
+                    ? '/user/posts'
+                    : '/posts';
 
                 const res = await axios.get(url);
                 if (res.data.code === 0) {
@@ -65,6 +80,21 @@ const PostList = {
                 this.loading = false;
             }
         },
+        canOpenPost(post) {
+            return !this.isMyPosts || post.status === 'PUBLISHED';
+        },
+        statusLabel(status) {
+            const labels = {
+                PENDING_REVIEW: '审核中',
+                PUBLISHED: '已发布',
+                REJECTED: '已拒绝',
+                NEEDS_HUMAN_REVIEW: '人工复核'
+            };
+            return labels[status] || '未知状态';
+        },
+        statusClass(status) {
+            return 'status-' + String(status || 'unknown').toLowerCase();
+        },
         formatTime
     },
     // 关键：监听路由变化。当用户在导航栏点击时，手动触发数据重新加载
@@ -72,6 +102,15 @@ const PostList = {
         '$route': {
             handler: 'fetchPosts',
             immediate: true // 初始载入时也执行一次
+        }
+    },
+    created() {
+        this.moderationHandler = () => this.fetchPosts();
+        window.addEventListener('moderation-status-changed', this.moderationHandler);
+    },
+    beforeUnmount() {
+        if (this.moderationHandler) {
+            window.removeEventListener('moderation-status-changed', this.moderationHandler);
         }
     }
 };
@@ -194,7 +233,7 @@ const PostDetail = {
                 return;
             }
             try {
-                await axios.put(`http://localhost:8080/posts/${this.post.id}`, this.editingPost);
+                await axios.put(`/posts/${this.post.id}`, this.editingPost);
                 this.post.title = this.editingPost.title;
                 this.post.content = this.editingPost.content;
                 this.isEditing = false;
@@ -217,7 +256,7 @@ const PostDetail = {
                 return;
             }
             try {
-                await axios.put(`http://localhost:8080/comments/${commentId}`, { 
+                await axios.put(`/comments/${commentId}`, { 
                     content: this.editingContent 
                 });
                 this.editingCommentId = null;
@@ -230,7 +269,7 @@ const PostDetail = {
         async deleteComment(commentId) {
             if (!confirm('确定要删除这条评论吗？')) return;
             try {
-                await axios.delete(`http://localhost:8080/comments/${commentId}`);
+                await axios.delete(`/comments/${commentId}`);
                 this.fetchData();
             } catch (error) {
                 alert(error.response?.data?.message || '删除失败');
@@ -240,9 +279,9 @@ const PostDetail = {
             try {
                 const id = this.$route.params.id;
                 const [pRes, lRes, cRes] = await Promise.all([
-                    axios.get(`http://localhost:8080/posts/${id}`),
-                    axios.get(`http://localhost:8080/posts/${id}/like/status`),
-                    axios.get(`http://localhost:8080/posts/${id}/comments`)
+                    axios.get(`/posts/${id}`),
+                    axios.get(`/posts/${id}/like/status`),
+                    axios.get(`/posts/${id}/comments`)
                 ]);
                 this.post = pRes.data.data;
                 this.hasLiked = lRes.data.data.liked;
@@ -260,7 +299,7 @@ const PostDetail = {
             this.aiStatus = null;
 
             try {
-                const res = await axios.post(`http://localhost:8080/posts/${this.post.id}/ai-summary`);
+                const res = await axios.post(`/posts/${this.post.id}/ai-summary`);
                 console.log('[AI] 接口返回:', res.data);
 
                 if (res.data.code !== 0) {
@@ -298,10 +337,10 @@ const PostDetail = {
             const id = this.post.id;
             try {
                 if (this.hasLiked) {
-                    await axios.delete(`http://localhost:8080/posts/${id}/like`);
+                    await axios.delete(`/posts/${id}/like`);
                     this.likeCount--;
                 } else {
-                    await axios.post(`http://localhost:8080/posts/${id}/like`);
+                    await axios.post(`/posts/${id}/like`);
                     this.likeCount++;
                 }
                 this.hasLiked = !this.hasLiked;
@@ -312,7 +351,7 @@ const PostDetail = {
         async postComment() {
             if (!this.newComment.trim()) return;
             try {
-                await axios.post(`http://localhost:8080/posts/${this.post.id}/comments`, { content: this.newComment });
+                await axios.post(`/posts/${this.post.id}/comments`, { content: this.newComment });
                 this.newComment = '';
                 this.fetchData();
             } catch (error) {
@@ -322,7 +361,7 @@ const PostDetail = {
         async handleDelete() {
             if (!confirm('确定要删除这篇帖子吗？')) return;
             try {
-                await axios.delete(`http://localhost:8080/posts/${this.post.id}`);
+                await axios.delete(`/posts/${this.post.id}`);
                 this.$router.push('/');
             } catch (error) {
                 console.error('删除失败:', error);
@@ -374,7 +413,7 @@ const app = createApp({
     methods: {
         formatTime,
         connectWebSocket() {
-            const socket = new SockJS('http://localhost:8080/ws');
+            const socket = new SockJS(`${API_BASE_URL}/ws`);
             this.stompClient = Stomp.over(socket);
             const headers = { 'Authorization': `Bearer ${localStorage.getItem('jwt-token')}` };
 
@@ -408,6 +447,13 @@ const app = createApp({
                         return;
                     }
                 });
+
+                // 3. 订阅内容审核结果，刷新帖子列表状态
+                this.stompClient.subscribe('/topic/user/' + userId + '/moderation', (msg) => {
+                    const data = JSON.parse(msg.body);
+                    console.log('[Moderation][WebSocket] 收到消息:', data);
+                    window.dispatchEvent(new CustomEvent('moderation-status-changed', { detail: data }));
+                });
             }, (error) => {
                 console.error('WebSocket 连接失败:', error);
             });
@@ -417,7 +463,7 @@ const app = createApp({
                 return alert('请填写用户名和密码');
             }
             try {
-                const res = await axios.post('http://localhost:8080/users/login', this.loginUser);
+                const res = await axios.post('/users/login', this.loginUser);
                 if (res.data.code === 0) {
                     const token = res.data.data;
                     localStorage.setItem('jwt-token', token);
@@ -473,10 +519,10 @@ const app = createApp({
                 return alert('请填写标题和内容');
             }
             try {
-                await axios.post('http://localhost:8080/posts', this.newPost);
+                await axios.post('/posts', this.newPost);
                 this.closeCreatePostModal();
-                this.$router.push('/');
-                setTimeout(() => location.reload(), 100);
+                this.$router.push('/my-posts');
+                this.routerViewKey++;
             } catch (error) {
                 alert(error.response?.data?.message || '发布失败');
             }
@@ -489,7 +535,7 @@ const app = createApp({
                 return alert('两次密码不一致');
             }
             try {
-                await axios.post('http://localhost:8080/users/register', this.newUser);
+                await axios.post('/users/register', this.newUser);
                 alert('注册成功！请登录');
                 this.closeRegistrationModal();
                 this.openLoginModal();
@@ -505,7 +551,7 @@ const app = createApp({
             if (!notification.read) {
                 notification.read = true;
                 this.unreadCount = Math.max(0, this.unreadCount - 1);
-                axios.post(`http://localhost:8080/api/notifications/${notification.id}/read`).catch(err => {
+                axios.post(`/api/notifications/${notification.id}/read`).catch(err => {
                     console.error('标记已读失败:', err);
                 });
             }
@@ -515,8 +561,8 @@ const app = createApp({
             try {
                 // 并发请求：获取未读数量 和 获取通知列表
                 const [countRes, listRes] = await Promise.all([
-                    axios.get('http://localhost:8080/api/notifications/unread-count'),
-                    axios.get('http://localhost:8080/api/notifications')
+                    axios.get('/api/notifications/unread-count'),
+                    axios.get('/api/notifications')
                 ]);
                 if (countRes.data.code === 0) {
                     this.unreadCount = countRes.data.data;

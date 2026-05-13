@@ -464,12 +464,69 @@ body {
     transform: scaleX(1);
 }
 
+.post-card-disabled {
+    cursor: default;
+    opacity: 0.88;
+}
+
+.post-card-disabled:hover {
+    transform: none;
+    box-shadow: var(--shadow-md);
+    border-color: transparent;
+}
+
+.post-card-disabled:hover::before {
+    transform: scaleX(0);
+}
+
+.post-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
 .post-title {
     font-size: 1.4rem;
     font-weight: 700;
-    margin-bottom: 12px;
+    margin: 0;
     color: var(--text);
     line-height: 1.4;
+}
+
+.status-badge {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+
+.status-pending_review {
+    color: #8a5a00;
+    background: #fff4cc;
+    border-color: #f4d56b;
+}
+
+.status-published {
+    color: #116149;
+    background: #dff8ed;
+    border-color: #9be4c7;
+}
+
+.status-rejected {
+    color: #9f1d2f;
+    background: #ffe1e6;
+    border-color: #f7a3b1;
+}
+
+.status-needs_human_review {
+    color: #5c3d99;
+    background: #eee7ff;
+    border-color: #c9b8ff;
 }
 
 .post-info {

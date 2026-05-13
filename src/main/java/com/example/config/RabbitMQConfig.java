@@ -11,6 +11,8 @@ public class RabbitMQConfig {
     public static final String NEW_COMMENT_QUEUE = "new.comment.queue";
 
     public static final String AI_SUMMARY_QUEUE = "ai.summary.queue";
+    public static final String MODERATION_QUEUE = "moderation.queue";
+
     @Bean
     public Queue welcomeEmailQueue() {
         return new Queue(WELCOME_EMAIL_QUEUE, true); // true表示队列持久化
@@ -24,5 +26,10 @@ public class RabbitMQConfig {
     @Bean
     public Queue aiSummaryQueue() {
         return new Queue(AI_SUMMARY_QUEUE, true);
+    }
+
+    @Bean
+    public Queue moderationQueue() {
+        return new Queue(MODERATION_QUEUE, true);
     }
 }

@@ -17,6 +17,7 @@ public class Post implements Serializable {
     private String title;
     private String content;
     private Long userId;
+    private String status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 

@@ -3,6 +3,8 @@ package com.example.mapper;
 import com.example.pojo.Post;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -18,6 +20,7 @@ public interface PostMapper {
     @Select("SELECT p.*, u.username as authorUsername " +
             "FROM post p " +
             "JOIN user u ON p.user_id = u.id " +
+            "WHERE p.status = 'PUBLISHED' " +
             "ORDER BY p.create_time DESC") // 按创建时间降序排序，最新的帖子在最前面
     List<Post> findAllWithAuthor();
 
@@ -26,7 +29,8 @@ public interface PostMapper {
      * @param post 帖子对象
      * @return 插入的行数
      */
-    @Insert("INSERT INTO post(title, content, user_id) VALUES(#{title}, #{content}, #{userId})")
+    @Insert("INSERT INTO post(title, content, user_id, status) VALUES(#{title}, #{content}, #{userId}, COALESCE(#{status}, 'PUBLISHED'))")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
     int insertPost(Post post);
 
     /**
@@ -38,6 +42,11 @@ public interface PostMapper {
             "FROM post p JOIN user u ON p.user_id = u.id " +
             "WHERE p.id = #{id}")
     Post findById(Long id);
+
+    @Select("SELECT p.*, u.username as authorUsername " +
+            "FROM post p JOIN user u ON p.user_id = u.id " +
+            "WHERE p.id = #{id} AND p.status = 'PUBLISHED'")
+    Post findPublishedById(Long id);
 
     /**
      * 根据用户id查询该用户发布的所有帖子，并关联查询出作者的用户名
@@ -56,8 +65,18 @@ public interface PostMapper {
      * @param post 帖子对象
      * @return 更新的行数
      */
-    @Update("UPDATE post SET title = #{title}, content = #{content} WHERE id = #{id}")
+    @Update("UPDATE post SET title = #{title}, content = #{content}, status = #{status} WHERE id = #{id}")
     int updatePost(Post post);
+
+    @Update("UPDATE post SET status = #{status}, update_time = NOW() WHERE id = #{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
+
+    @Update("UPDATE post SET status = #{status}, update_time = NOW() " +
+            "WHERE id = #{id} AND status = 'PENDING_REVIEW' AND title = #{title} AND content = #{content}")
+    int updateStatusIfPendingAndContentMatches(@Param("id") Long id,
+                                               @Param("status") String status,
+                                               @Param("title") String title,
+                                               @Param("content") String content);
 
     /**
      * 根据帖子ID和用户ID查询帖子（用于验证用户是否有权限修改该帖子）

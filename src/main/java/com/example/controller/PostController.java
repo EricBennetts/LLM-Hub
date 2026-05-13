@@ -3,6 +3,7 @@ package com.example.controller;
 import com.example.annotation.AntiDuplicate;
 import com.example.config.RabbitMQConfig;
 import com.example.pojo.AiSummaryTask;
+import com.example.pojo.ModerationTask;
 import com.example.pojo.Post;
 import com.example.pojo.Result;
 import com.example.service.PostService;
@@ -45,8 +46,13 @@ public class PostController {
             return Result.error("标题和内容不能为空");
         }
 
-        postService.createPost(post);
-        return Result.success();
+        Long userId = UserContext.getUserId();
+        Post submittedPost = postService.submitPostForReview(post);
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.MODERATION_QUEUE,
+                new ModerationTask(submittedPost.getId(), userId, submittedPost.getTitle(), submittedPost.getContent())
+        );
+        return Result.success("帖子已提交，正在审核中...");
     }
 
     // 获取帖子详情 (GET /posts/{id})
@@ -77,7 +83,11 @@ public class PostController {
         // 尝试更新帖子
         boolean success = postService.updatePost(post);
         if (success) {
-            return Result.success();
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.MODERATION_QUEUE,
+                    new ModerationTask(id, UserContext.getUserId(), post.getTitle(), post.getContent())
+            );
+            return Result.success("帖子已更新，正在重新审核中...");
         } else {
             return Result.error("帖子不存在或您无权修改此帖子");
         }

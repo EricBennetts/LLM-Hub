@@ -36,6 +36,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // authorizeHttpRequests 为 AuthorizationFilter 编写一本“规则手册”
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/index.html", "/main.html", "/style.css", "/script.js", "/favicon.ico").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/users/register", "/users/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/logout").authenticated()
                         // 对帖子的限制

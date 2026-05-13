@@ -31,7 +31,7 @@ public class LikeServiceImpl implements LikeService {
     public boolean likePost(Long postId) {
         Long userId = UserContext.getUserId();
 
-        Post post = postMapper.findById(postId);
+        Post post = postMapper.findPublishedById(postId);
         if (post == null) {
             throw new RuntimeException("帖子不存在");
         }
@@ -81,7 +81,7 @@ public class LikeServiceImpl implements LikeService {
 
     @Override
     public int getPostLikeCount(Long postId) {
-        Post post = postMapper.findById(postId);
+        Post post = postMapper.findPublishedById(postId);
         return post == null || post.getLikeCount() == null ? 0 : post.getLikeCount();
     }
 }

@@ -36,7 +36,10 @@ public class CommentServiceImpl implements CommentService {
         System.out.println("评论的id为" + comment.getId());
         // 添加评论后，发送消息给MQ，通知用户
         // 首先获取被评论的帖子，以得到帖子作者的ID
-        Post commentedPost = postMapper.findById(comment.getPostId());
+        Post commentedPost = postMapper.findPublishedById(comment.getPostId());
+        if (commentedPost == null) {
+            throw new RuntimeException("帖子不存在或尚未发布");
+        }
         // 如果帖子作者ID和当前用户ID不同，则发送消息给MQ
         if (commentedPost != null && !commentedPost.getUserId().equals(currentUserId)) {
             // 将评论对象作为消息发送到队列
