@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/users/register", "/users/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/logout").authenticated()
                         // 对帖子的限制
+                        .requestMatchers(HttpMethod.GET, "/posts/*/moderation-logs").authenticated()
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/posts").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/posts/**").authenticated()
