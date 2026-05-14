@@ -1,14 +1,19 @@
 package com.example.agent;
 
 import com.example.agent.client.ChatCompletionClient;
+import com.example.agent.tool.UserModerationContextTool;
 import com.example.agent.tool.PlatformGuidelinesTool;
 import com.example.config.AiConfig;
+import com.example.mapper.ModerationLogMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.pojo.ModerationLog;
+
+import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,9 +53,40 @@ class ModerationAgentTest {
 
         Map<String, Object> firstToolDefinition = client.calls().get(0).tools().get(0);
         assertEquals("function", firstToolDefinition.get("type"));
+        assertEquals(2, client.calls().get(0).tools().size());
 
         List<Map<String, Object>> secondCallMessages = client.calls().get(1).messages();
         assertTrue(secondCallMessages.stream().anyMatch(message -> "tool".equals(message.get("role"))));
+    }
+
+    @Test
+    void moderateShouldExecuteUserModerationContextToolWhenRequested() throws Exception {
+        FakeChatCompletionClient client = new FakeChatCompletionClient(
+                toolCallResponse("call-guidelines-1", PlatformGuidelinesTool.NAME),
+                toolCallResponse("call-user-context-1", UserModerationContextTool.NAME),
+                finalTextResponse("""
+                        {"decision":"NEEDS_HUMAN_REVIEW","riskLevel":"MEDIUM","categories":["spam"],"confidence":0.66,"reason":"内容含糊且用户近期有广告类拒绝记录"}
+                        """)
+        );
+        ModerationAgent agent = agentWith(client, List.of(
+                moderationLog("REJECT", "广告引流，要求私聊联系方式"),
+                moderationLog("APPROVE", "正常内容")
+        ));
+
+        ModerationResult result = agent.moderate(new ModerationRequest(
+                10L,
+                20L,
+                "特殊渠道",
+                "公开不方便说，懂的人私聊，价格好商量。"
+        ));
+
+        assertEquals(ModerationDecision.NEEDS_HUMAN_REVIEW, result.decision());
+        assertEquals(ModerationRiskLevel.MEDIUM, result.riskLevel());
+        assertEquals(3, client.calls().size());
+        assertTrue(result.toolCallsJson().contains(PlatformGuidelinesTool.NAME));
+        assertTrue(result.toolCallsJson().contains(UserModerationContextTool.NAME));
+        assertTrue(result.toolCallsJson().contains("\"userId\":20"));
+        assertTrue(result.toolCallsJson().contains("prior_spam_like_content"));
     }
 
     @Test
@@ -132,6 +168,10 @@ class ModerationAgentTest {
     }
 
     private static ModerationAgent agentWith(ChatCompletionClient client) {
+        return agentWith(client, List.of());
+    }
+
+    private static ModerationAgent agentWith(ChatCompletionClient client, List<ModerationLog> moderationLogs) {
         AiConfig aiConfig = new AiConfig();
         aiConfig.setModel("deepseek-test");
         aiConfig.setApiKey("test-api-key");
@@ -139,8 +179,22 @@ class ModerationAgentTest {
         ModerationAgent agent = new ModerationAgent();
         ReflectionTestUtils.setField(agent, "aiConfig", aiConfig);
         ReflectionTestUtils.setField(agent, "platformGuidelinesTool", new PlatformGuidelinesTool());
+        ReflectionTestUtils.setField(agent, "userModerationContextTool", userContextTool(moderationLogs));
         ReflectionTestUtils.setField(agent, "chatCompletionClient", client);
         return agent;
+    }
+
+    private static UserModerationContextTool userContextTool(List<ModerationLog> moderationLogs) {
+        UserModerationContextTool tool = new UserModerationContextTool();
+        ReflectionTestUtils.setField(tool, "moderationLogMapper", new FakeModerationLogMapper(moderationLogs));
+        return tool;
+    }
+
+    private static ModerationLog moderationLog(String decision, String reason) {
+        ModerationLog log = new ModerationLog();
+        log.setDecision(decision);
+        log.setReason(reason);
+        return log;
     }
 
     private static JsonNode toolCallResponse(String id, String toolName) throws Exception {
@@ -208,5 +262,23 @@ class ModerationAgentTest {
     }
 
     private record ClientCall(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+    }
+
+    private record FakeModerationLogMapper(List<ModerationLog> logs) implements ModerationLogMapper {
+
+        @Override
+        public int insert(ModerationLog moderationLog) {
+            throw new UnsupportedOperationException("insert is not used in this test");
+        }
+
+        @Override
+        public List<ModerationLog> findByPostId(Long postId) {
+            throw new UnsupportedOperationException("findByPostId is not used in this test");
+        }
+
+        @Override
+        public List<ModerationLog> findRecentByUserIdSince(Long userId, LocalDateTime since) {
+            return logs;
+        }
     }
 }

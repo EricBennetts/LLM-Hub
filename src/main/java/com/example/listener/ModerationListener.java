@@ -3,6 +3,7 @@ package com.example.listener;
 import com.example.agent.ModerationAgent;
 import com.example.agent.ModerationAgentException;
 import com.example.agent.ModerationDecision;
+import com.example.agent.ModerationRequest;
 import com.example.agent.ModerationResult;
 import com.example.config.RabbitMQConfig;
 import com.example.mapper.ModerationLogMapper;
@@ -69,7 +70,7 @@ public class ModerationListener {
                 content = post.getContent();
             }
 
-            ModerationResult result = moderationAgent.moderate(title, content);
+            ModerationResult result = moderationAgent.moderate(new ModerationRequest(postId, userId, title, content));
             PostStatus targetStatus = postStatusForDecision(result.decision());
 
             if (postService.completeModeration(postId, targetStatus, title, content)) {

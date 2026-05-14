@@ -2,6 +2,7 @@ package com.example.agent;
 
 import com.example.agent.client.ChatCompletionClient;
 import com.example.agent.tool.PlatformGuidelinesTool;
+import com.example.agent.tool.UserModerationContextTool;
 import com.example.config.AiConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,12 +25,14 @@ public class ModerationAgent {
     private PlatformGuidelinesTool platformGuidelinesTool;
 
     @Autowired
+    private UserModerationContextTool userModerationContextTool;
+
+    @Autowired
     private ChatCompletionClient chatCompletionClient;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Tool definition sent to the AI so it knows what it can call
-    private static final Map<String, Object> TOOL_DEFINITION = Map.of(
+    private static final Map<String, Object> PLATFORM_GUIDELINES_TOOL_DEFINITION = Map.of(
             "type", "function",
             "function", Map.of(
                     "name", PlatformGuidelinesTool.NAME,
@@ -39,27 +42,53 @@ public class ModerationAgent {
     );
 
     public ModerationResult moderate(String title, String content) throws Exception {
+        return moderate(new ModerationRequest(null, null, title, content));
+    }
+
+    private static final Map<String, Object> USER_CONTEXT_TOOL_DEFINITION = Map.of(
+            "type", "function",
+            "function", Map.of(
+                    "name", UserModerationContextTool.NAME,
+                    "description", UserModerationContextTool.DESCRIPTION,
+                    "parameters", Map.of("type", "object", "properties", Map.of())
+            )
+    );
+
+    private static final List<Map<String, Object>> TOOL_DEFINITIONS = List.of(
+            PLATFORM_GUIDELINES_TOOL_DEFINITION,
+            USER_CONTEXT_TOOL_DEFINITION
+    );
+
+    public ModerationResult moderate(ModerationRequest request) throws Exception {
         long startedAt = System.nanoTime();
         String model = aiConfig.getModel();
         String rawResponse = null;
         List<Map<String, Object>> toolCallLogs = new ArrayList<>();
         List<Map<String, Object>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content",
-                "You are a content moderation agent. Use the getPlatformGuidelines tool to retrieve the platform rules, " +
+                "You are a content moderation agent. Call getPlatformGuidelines before making a decision. " +
+                "Call getUserModerationContext when userId is available or when the content is ambiguous, coded, spam-like, or low-confidence. " +
+                "User moderation context is only a risk signal: do not reject content solely because of user history. " +
+                "If the current content is clearly allowed, approve it even when user history is risky. " +
+                "If the current content is clearly prohibited, reject it even when user history is clean. " +
                 "then decide whether the post should be approved, rejected, or sent to human review. " +
                 "Use NEEDS_HUMAN_REVIEW when the content is ambiguous, context-dependent, or your confidence is low. " +
+                "Self-harm risk, severe distress, or possible crisis support requests should be sent to NEEDS_HUMAN_REVIEW. " +
                 "The categories field should contain zero or more of: spam, harassment, hate, sexual, violence, misinformation, illegal, other. " +
                 "Respond ONLY with one valid JSON object and no prose before or after it: " +
                 "{\"decision\":\"APPROVE|REJECT|NEEDS_HUMAN_REVIEW\", \"riskLevel\":\"LOW|MEDIUM|HIGH\", " +
                 "\"categories\":[\"spam\"], " +
                 "\"confidence\":0.0, \"reason\":\"...\"}"));
         messages.add(Map.of("role", "user", "content",
-                "Please moderate this post.\nTitle: " + title + "\nContent: " + content));
+                "Please moderate this post.\nPost ID: " + request.postId() +
+                        "\nUser ID: " + request.userId() +
+                        "\nTitle: " + request.title() +
+                        "\nContent: " + request.content()));
 
         try {
             // Tool use loop — runs until the AI gives a final text response
             for (int i = 0; i < 5; i++) {
-                JsonNode response = chatCompletionClient.complete(messages, List.of(TOOL_DEFINITION));
+                JsonNode response = chatCompletionClient.complete(messages, TOOL_DEFINITIONS);
                 JsonNode choice = response.path("choices").get(0);
                 String finishReason = choice.path("finish_reason").asText();
                 JsonNode message = choice.path("message");
@@ -74,7 +103,7 @@ public class ModerationAgent {
                         String toolName = toolCall.path("function").path("name").asText();
                         String toolCallId = toolCall.path("id").asText();
                         String arguments = toolCall.path("function").path("arguments").asText();
-                        Object result = executeTool(toolName);
+                        Object result = executeTool(toolName, request);
 
                         Map<String, Object> toolCallLog = new LinkedHashMap<>();
                         toolCallLog.put("id", toolCallId);
@@ -141,9 +170,12 @@ public class ModerationAgent {
         }
     }
 
-    private Object executeTool(String toolName) {
+    private Object executeTool(String toolName, ModerationRequest request) {
         if (PlatformGuidelinesTool.NAME.equals(toolName)) {
             return platformGuidelinesTool.execute();
+        }
+        if (UserModerationContextTool.NAME.equals(toolName)) {
+            return userModerationContextTool.execute(request.userId());
         }
         throw new IllegalArgumentException("Unknown tool: " + toolName);
     }

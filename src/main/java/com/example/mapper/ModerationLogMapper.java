@@ -4,8 +4,10 @@ import com.example.pojo.ModerationLog;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -25,4 +27,10 @@ public interface ModerationLogMapper {
 
     @Select("SELECT * FROM moderation_log WHERE post_id = #{postId} ORDER BY create_time DESC")
     List<ModerationLog> findByPostId(Long postId);
+
+    @Select("SELECT * FROM moderation_log " +
+            "WHERE user_id = #{userId} AND create_time >= #{since} " +
+            "ORDER BY create_time DESC")
+    List<ModerationLog> findRecentByUserIdSince(@Param("userId") Long userId,
+                                                @Param("since") LocalDateTime since);
 }
