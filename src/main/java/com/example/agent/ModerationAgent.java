@@ -1,5 +1,6 @@
 package com.example.agent;
 
+import com.example.agent.client.ChatCompletionClient;
 import com.example.agent.tool.PlatformGuidelinesTool;
 import com.example.config.AiConfig;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,11 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -27,13 +23,13 @@ public class ModerationAgent {
     @Autowired
     private PlatformGuidelinesTool platformGuidelinesTool;
 
+    @Autowired
+    private ChatCompletionClient chatCompletionClient;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
     // Tool definition sent to the AI so it knows what it can call
-    private static final Map<String, Object> TOOL_DEFINITIONS = Map.of(
+    private static final Map<String, Object> TOOL_DEFINITION = Map.of(
             "type", "function",
             "function", Map.of(
                     "name", PlatformGuidelinesTool.NAME,
@@ -50,16 +46,20 @@ public class ModerationAgent {
         List<Map<String, Object>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content",
                 "You are a content moderation agent. Use the getPlatformGuidelines tool to retrieve the platform rules, " +
-                "then decide if the post is approved or rejected. " +
+                "then decide whether the post should be approved, rejected, or sent to human review. " +
+                "Use NEEDS_HUMAN_REVIEW when the content is ambiguous, context-dependent, or your confidence is low. " +
+                "The categories field should contain zero or more of: spam, harassment, hate, sexual, violence, misinformation, illegal, other. " +
                 "Respond ONLY with one valid JSON object and no prose before or after it: " +
-                "{\"approved\": true/false, \"reason\": \"...\"}"));
+                "{\"decision\":\"APPROVE|REJECT|NEEDS_HUMAN_REVIEW\", \"riskLevel\":\"LOW|MEDIUM|HIGH\", " +
+                "\"categories\":[\"spam\"], " +
+                "\"confidence\":0.0, \"reason\":\"...\"}"));
         messages.add(Map.of("role", "user", "content",
                 "Please moderate this post.\nTitle: " + title + "\nContent: " + content));
 
         try {
             // Tool use loop — runs until the AI gives a final text response
             for (int i = 0; i < 5; i++) {
-                JsonNode response = callDeepSeek(messages);
+                JsonNode response = chatCompletionClient.complete(messages, List.of(TOOL_DEFINITION));
                 JsonNode choice = response.path("choices").get(0);
                 String finishReason = choice.path("finish_reason").asText();
                 JsonNode message = choice.path("message");
@@ -99,9 +99,8 @@ public class ModerationAgent {
                     }
                     try {
                         JsonNode parsed = objectMapper.readTree(extractJsonObject(text));
-                        return new ModerationResult(
-                                parsed.path("approved").asBoolean(),
-                                parsed.path("reason").asText(),
+                        return parseModerationResult(
+                                parsed,
                                 model,
                                 rawResponse,
                                 objectMapper.writeValueAsString(toolCallLogs),
@@ -147,31 +146,6 @@ public class ModerationAgent {
             return platformGuidelinesTool.execute();
         }
         throw new IllegalArgumentException("Unknown tool: " + toolName);
-    }
-
-    private JsonNode callDeepSeek(List<Map<String, Object>> messages) throws Exception {
-        Map<String, Object> body = Map.of(
-                "model", aiConfig.getModel(),
-                "messages", messages,
-                "tools", List.of(TOOL_DEFINITIONS),
-                "tool_choice", "auto"
-        );
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.deepseek.com/chat/completions"))
-                .timeout(Duration.ofSeconds(60))
-                .header("Content-Type", "application/json; charset=UTF-8")
-                .header("Authorization", "Bearer " + aiConfig.getApiKey())
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body), StandardCharsets.UTF_8))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException("DeepSeek API error " + response.statusCode() + ": " + response.body());
-        }
-
-        return objectMapper.readTree(response.body());
     }
 
     private long elapsedMs(long startedAt) {
@@ -222,5 +196,100 @@ public class ModerationAgent {
         }
 
         throw new IllegalArgumentException("Moderation response contains an incomplete JSON object");
+    }
+
+    private ModerationResult parseModerationResult(JsonNode parsed, String model, String rawResponse,
+                                                   String toolCallsJson, Long latencyMs) {
+        ModerationDecision decision = parseDecision(parsed);
+        ModerationRiskLevel riskLevel = parseRiskLevel(parsed.path("riskLevel").asText(null), decision);
+        List<String> categories = parseCategories(parsed.path("categories"));
+        double confidence = parseConfidence(parsed.path("confidence"), decision);
+        String reason = parsed.path("reason").asText("");
+
+        return new ModerationResult(
+                decision,
+                riskLevel,
+                categories,
+                confidence,
+                reason,
+                model,
+                rawResponse,
+                toolCallsJson,
+                latencyMs
+        );
+    }
+
+    private ModerationDecision parseDecision(JsonNode parsed) {
+        String value = parsed.path("decision").asText(null);
+        if (value == null || value.isBlank()) {
+            if (parsed.has("approved")) {
+                return parsed.path("approved").asBoolean()
+                        ? ModerationDecision.APPROVE
+                        : ModerationDecision.REJECT;
+            }
+            throw new IllegalArgumentException("Moderation response is missing decision");
+        }
+
+        String normalized = value.trim().toUpperCase().replace('-', '_');
+        return switch (normalized) {
+            case "APPROVE", "APPROVED" -> ModerationDecision.APPROVE;
+            case "REJECT", "REJECTED" -> ModerationDecision.REJECT;
+            case "NEEDS_HUMAN_REVIEW", "HUMAN_REVIEW", "NEEDS_REVIEW" -> ModerationDecision.NEEDS_HUMAN_REVIEW;
+            default -> throw new IllegalArgumentException("Unknown moderation decision: " + value);
+        };
+    }
+
+    private ModerationRiskLevel parseRiskLevel(String value, ModerationDecision decision) {
+        if (value == null || value.isBlank()) {
+            return switch (decision) {
+                case APPROVE -> ModerationRiskLevel.LOW;
+                case REJECT -> ModerationRiskLevel.HIGH;
+                case NEEDS_HUMAN_REVIEW -> ModerationRiskLevel.MEDIUM;
+            };
+        }
+
+        String normalized = value.trim().toUpperCase().replace('-', '_');
+        return switch (normalized) {
+            case "LOW" -> ModerationRiskLevel.LOW;
+            case "MEDIUM", "MID" -> ModerationRiskLevel.MEDIUM;
+            case "HIGH" -> ModerationRiskLevel.HIGH;
+            default -> throw new IllegalArgumentException("Unknown moderation risk level: " + value);
+        };
+    }
+
+    private List<String> parseCategories(JsonNode categoriesNode) {
+        if (categoriesNode == null || categoriesNode.isMissingNode() || categoriesNode.isNull()) {
+            return List.of();
+        }
+
+        List<String> categories = new ArrayList<>();
+        if (categoriesNode.isArray()) {
+            for (JsonNode node : categoriesNode) {
+                String category = node.asText("").trim();
+                if (!category.isBlank()) {
+                    categories.add(category);
+                }
+            }
+        } else {
+            String category = categoriesNode.asText("").trim();
+            if (!category.isBlank()) {
+                categories.add(category);
+            }
+        }
+        return categories;
+    }
+
+    private double parseConfidence(JsonNode confidenceNode, ModerationDecision decision) {
+        if (confidenceNode != null && confidenceNode.isNumber()) {
+            return confidenceNode.asDouble();
+        }
+        if (confidenceNode != null && confidenceNode.isTextual()) {
+            try {
+                return Double.parseDouble(confidenceNode.asText());
+            } catch (NumberFormatException ignored) {
+                // Fall through to the decision-based default.
+            }
+        }
+        return decision == ModerationDecision.NEEDS_HUMAN_REVIEW ? 0.4 : 0.8;
     }
 }

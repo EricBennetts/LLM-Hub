@@ -1,10 +1,13 @@
 package com.example.config;
 
 import com.example.interceptor.JwtAuthenticationFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -17,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -66,6 +70,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**").authenticated()
                         .anyRequest().authenticated()
                 );
+
+        // --- 自定义认证/授权异常处理，返回 JSON ---
+        http.exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.setCharacterEncoding("UTF-8");
+                    new ObjectMapper().writeValue(response.getWriter(),
+                            Map.of("code", 1, "message", "请先登录"));
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.setCharacterEncoding("UTF-8");
+                    new ObjectMapper().writeValue(response.getWriter(),
+                            Map.of("code", 1, "message", "权限不足"));
+                })
+        );
 
         // ---  添加 JWT 过滤器 ---
         // 告诉 Spring Security，在进行用户名密码认证前，先执行我们的 JWT 过滤器

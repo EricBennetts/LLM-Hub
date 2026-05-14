@@ -2,12 +2,15 @@ package com.example.interceptor;
 
 import com.example.pojo.UserPrincipal;
 import com.example.utils.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -23,11 +26,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String token = request.getHeader("Authorization");
 
-        // 如果没有token，或者请求的是公共路径，直接放行
         if (token == null || !token.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -36,26 +40,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String actualToken = token.substring(7);
 
-            // 检查token是否在Redis黑名单中
             Boolean isBlacklisted = stringRedisTemplate.hasKey("jwt:blacklist:" + actualToken);
             if (Boolean.TRUE.equals(isBlacklisted)) {
-                throw new Exception("Token is blacklisted!");
+                throw new RuntimeException("Token is blacklisted");
             }
             Map<String, Object> claims = JwtUtil.parseToken(actualToken);
 
-            // 解析成功，将认证信息存入 Spring Security 的上下文
-            // 这样，Spring Security 就知道当前用户是谁，并且是已认证的
             UserPrincipal userPrincipal = new UserPrincipal(claims);
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                     userPrincipal, null, Collections.emptyList());
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
         } catch (Exception e) {
-            // 安全上下文被清空，之后的AuthorizationFilter会发现需要认证但找不到认证信息，就判定为认证失败
             SecurityContextHolder.clearContext();
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            objectMapper.writeValue(response.getWriter(),
+                    Map.of("code", 1, "message", "登录已过期，请重新登录"));
+            return;
         }
 
-        // 无论验证成功与否，都继续执行过滤器链
         filterChain.doFilter(request, response);
     }
 }

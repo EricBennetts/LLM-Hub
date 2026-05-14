@@ -16,6 +16,19 @@ const resolveApiBaseUrl = () => {
 const API_BASE_URL = resolveApiBaseUrl();
 axios.defaults.baseURL = API_BASE_URL;
 
+axios.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('jwt-token');
+            delete axios.defaults.headers.common['Authorization'];
+            alert('登录已过期，请重新登录');
+            location.reload();
+        }
+        return Promise.reject(error);
+    }
+);
+
 const formatTime = (time) => time ? new Date(time).toLocaleString() : '';
 
 // 帖子列表组件

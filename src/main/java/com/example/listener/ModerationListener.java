@@ -2,6 +2,7 @@ package com.example.listener;
 
 import com.example.agent.ModerationAgent;
 import com.example.agent.ModerationAgentException;
+import com.example.agent.ModerationDecision;
 import com.example.agent.ModerationResult;
 import com.example.config.RabbitMQConfig;
 import com.example.mapper.ModerationLogMapper;
@@ -69,29 +70,17 @@ public class ModerationListener {
             }
 
             ModerationResult result = moderationAgent.moderate(title, content);
+            PostStatus targetStatus = postStatusForDecision(result.decision());
 
-            if (result.approved()) {
-                if (postService.completeModeration(postId, PostStatus.PUBLISHED, title, content)) {
-                    payload.put("status", "APPROVED");
-                    payload.put("message", "Your post has been published.");
-                    saveLog(postId, userId, "APPROVED", PostStatus.PUBLISHED.name(), result.reason(), result,
-                            null, null, title, content);
-                } else {
-                    putStalePayload(payload);
-                    saveLog(postId, userId, "STALE", null, "帖子内容已更新，旧审核任务已忽略。", result,
-                            null, null, title, content);
-                }
+            if (postService.completeModeration(postId, targetStatus, title, content)) {
+                payload.put("status", payloadStatusForDecision(result.decision()));
+                payload.put("message", messageForDecision(result));
+                saveLog(postId, userId, result.decision().name(), targetStatus.name(), result.reason(), result,
+                        null, null, title, content);
             } else {
-                if (postService.completeModeration(postId, PostStatus.REJECTED, title, content)) {
-                    payload.put("status", "REJECTED");
-                    payload.put("message", result.reason());
-                    saveLog(postId, userId, "REJECTED", PostStatus.REJECTED.name(), result.reason(), result,
-                            null, null, title, content);
-                } else {
-                    putStalePayload(payload);
-                    saveLog(postId, userId, "STALE", null, "帖子内容已更新，旧审核任务已忽略。", result,
-                            null, null, title, content);
-                }
+                putStalePayload(payload);
+                saveLog(postId, userId, "STALE", null, "帖子内容已更新，旧审核任务已忽略。", result,
+                        null, null, title, content);
             }
         } catch (Exception e) {
             if (title != null && content != null
@@ -112,6 +101,32 @@ public class ModerationListener {
     private void putStalePayload(Map<String, Object> payload) {
         payload.put("status", "STALE");
         payload.put("message", "帖子内容已更新，旧审核任务已忽略。");
+    }
+
+    private PostStatus postStatusForDecision(ModerationDecision decision) {
+        return switch (decision) {
+            case APPROVE -> PostStatus.PUBLISHED;
+            case REJECT -> PostStatus.REJECTED;
+            case NEEDS_HUMAN_REVIEW -> PostStatus.NEEDS_HUMAN_REVIEW;
+        };
+    }
+
+    private String payloadStatusForDecision(ModerationDecision decision) {
+        return switch (decision) {
+            case APPROVE -> "APPROVED";
+            case REJECT -> "REJECTED";
+            case NEEDS_HUMAN_REVIEW -> "NEEDS_HUMAN_REVIEW";
+        };
+    }
+
+    private String messageForDecision(ModerationResult result) {
+        return switch (result.decision()) {
+            case APPROVE -> "Your post has been published.";
+            case REJECT -> result.reason();
+            case NEEDS_HUMAN_REVIEW -> result.reason().isBlank()
+                    ? "帖子需要人工复核。"
+                    : "帖子需要人工复核：" + result.reason();
+        };
     }
 
     private void saveLog(Long postId, Long userId, String decision, String postStatus, String reason,
