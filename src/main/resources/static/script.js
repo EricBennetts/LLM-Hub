@@ -16,10 +16,13 @@ const resolveApiBaseUrl = () => {
 const API_BASE_URL = resolveApiBaseUrl();
 axios.defaults.baseURL = API_BASE_URL;
 
+let tokenExpiredHandled = false;
+
 axios.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !tokenExpiredHandled) {
+            tokenExpiredHandled = true;
             localStorage.removeItem('jwt-token');
             delete axios.defaults.headers.common['Authorization'];
             alert('登录已过期，请重新登录');
@@ -514,6 +517,7 @@ const app = createApp({
             }
         },
         logout() {
+            tokenExpiredHandled = true;
             if (this.stompClient) {
                 this.stompClient.disconnect();
             }
